@@ -1,4 +1,4 @@
-[index (23).html](https://github.com/user-attachments/files/33870577/index.23.html)
+[Uploading index (25).html…]()
 <!doctype html>
 <html lang="et">
 <head>
@@ -1175,7 +1175,7 @@ let hudKey = '';
 function drawHud(line){
   const g = guns[P.weapon]; if (P.downed) line = `🩸 OLED MAAS! Süsti 💉 ${Math.ceil(P.downT)} s`; const key = `${Math.ceil(P.hp)}|${Math.ceil(P.armor)}|${g.ammo}|${P.frags}|${P.smokes}|${P.stims}|${line}|${P.weapon}|${g.hasMag}`; if (key === hudKey) return; hudKey = key;
   hudP.draw((c, W, H) => { roundRect(c, 4, 4, W - 8, H - 8, 20); c.fillStyle = 'rgba(10,14,10,0.6)'; c.fill(); const hp = P.hp / P.maxHp; c.fillStyle = '#333'; c.fillRect(W * 0.04, H * 0.18, W * 0.3, H * 0.2); c.fillStyle = hp > 0.5 ? '#7cbf5a' : hp > 0.25 ? '#e0b030' : '#e53935'; c.fillRect(W * 0.04, H * 0.18, W * 0.3 * hp, H * 0.2); if (P.armor > 0) { c.fillStyle = '#64b5f6'; c.fillRect(W * 0.04, H * 0.42, W * 0.3 * P.armor / 50, H * 0.08); }
-    txt(c, `${{ rifle: 'Automaat', pistol: 'Püstol', smg: 'PKP', shotgun: 'Haavel', lmg: 'KP', sniper: 'Snaiper' }[P.weapon]} ${g.hasMag ? g.ammo : '–'}/${g.def.mag}`, W * 0.5, H * 0.3, H * 0.19, g.ammo ? '#e8eadf' : '#ff5252'); txt(c, `💣${P.frags} 🌫️${P.smokes} 💉${P.stims}`, W * 0.85, H * 0.3, H * 0.15); txt(c, line || '', W / 2, H * 0.72, H * 0.2, P.downed ? '#ff5252' : GOLD); });
+    txt(c, `${ ({ rifle: 'Automaat', pistol: 'Püstol', smg: 'PKP', shotgun: 'Haavel', lmg: 'KP', sniper: 'Snaiper' })[P.weapon]} ${g.hasMag ? g.ammo : '–'}/${g.def.mag}`, W * 0.5, H * 0.3, H * 0.19, g.ammo ? '#e8eadf' : '#ff5252'); txt(c, `💣${P.frags} 🌫️${P.smokes} 💉${P.stims}`, W * 0.85, H * 0.3, H * 0.15); txt(c, line || '', W / 2, H * 0.72, H * 0.2, P.downed ? '#ff5252' : GOLD); });
 }
 
 /* ===================== SESSIOON JA TSÜKKEL ===================== */
