@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el9';
+window.GAME_VERSION = 'el10';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,7 +21,7 @@ window.GAME_VERSION = 'el9';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el9)</span><br>
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el10)</span><br>
   Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = laadi, B = vaheta relva. Võta asjad KEHALT külgnupuga: salv kõhult, granaat/suits paremalt rinnalt, 💉 süstal vasakult rinnalt (vii rinnale = ravi), püstol paremalt puusalt, põhirelv üle parema õla. Kõiguta käsi nagu jooksed = jookse! Vasak juhtkang sisse (või raadio vasakul õlal) = 📻 raadio. 🔪 Nuga rinnal keskel. Y = paus.<br>
   Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1</b> = põhirelv, <b>2</b> = püstol, <b>E</b> = võta ese, <b>F</b> = 💉 süstal, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>V</b> = 📻 raadio, <b>K</b> = 🔪 torka, <b>T</b> = 🔪 viska, <b>X</b> = 💥 välkgranaat, <b>Esc</b> = menüü.
 </div>
@@ -304,6 +304,7 @@ const RANKS = ['Reamees', 'Kapral', 'Nooremseersant', 'Seersant', 'Vanemseersant
 const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {}, found: {}, att: {}, prim: 'rifle', gfx: 'ilus' }, store('el_save') || {});
 if (!save.v2) { save.v2 = true; save.reload = 'auto'; }
 const persist = () => store('el_save', save);
+if (!save.mig10) { save.mig10 = 1; save.reload = 'manual'; store('el_save', save); }
 const rankIdx = () => Math.min(RANKS.length - 1, Math.floor(Math.sqrt(save.xp / 150)));
 const rankXp = i => i * i * 150;
 function addXp(n){ const r0 = rankIdx(); save.xp += n; persist(); if (rankIdx() > r0) { msg(`🎖️ Ülendus! Uus auaste: ${RANKS[rankIdx()]}`, GOLD, 4); S.ok(); say('Ülendus'); } }
@@ -393,6 +394,7 @@ function newProp(type, pos){
   if (type === 'mag') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.13, 0.055), M.dark); m.castShadow = true; g.add(m); }
   if (type === 'frag') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 10), M.olive); m.scale.y = 1.2; g.add(m); const l = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.02), M.metal); l.position.set(0.02, 0.03, 0); g.add(l); }
   if (type === 'smoke') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.11, 12), std(0x9aa0a6)); g.add(m); }
+  if (type === 'bino') { for (const x of [-0.032, 0.032]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.11, 10).rotateX(Math.PI / 2), M.dark); c.position.set(x, 0, 0); g.add(c); } const br = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.04), M.gunMetal); g.add(br); }
   if (type === 'knife') { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.028, 0.17), std(0xb8bec4, { metalness: 0.9, roughness: 0.25 })); bl.position.z = -0.09; g.add(bl); const hd = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.03, 0.11), M.dark); hd.position.z = 0.055; g.add(hd); const gd = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.012), M.metal); gd.position.z = 0; g.add(gd); }
   if (type === 'flash') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.12, 10), std(0x3a4a5a)); g.add(m); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 10), std(0xd0d0d0)); b.position.y = 0.06; g.add(b); }
   if (type === 'shell') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.065, 8), M.red); m.rotation.x = Math.PI / 2; g.add(m); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0105, 0.015, 8), std(0xc9a227, { metalness: 0.8, roughness: 0.3 })); b.rotation.x = Math.PI / 2; b.position.z = 0.035; g.add(b); }
@@ -427,11 +429,11 @@ function clickBtn(b, h){ if (!isShown(b.p.mesh) || b.lock) { if (b.lock) S.bad()
 const keys = {}; let yaw = 0, pitch = 0, mouseDown = false, rmb = false;
 addEventListener('keydown', e => { keys[e.code] = true; audioInit();
   if (e.code === 'Escape') { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); }
-  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code === 'Digit1') setWeapon(P.prim); if (e.code === 'Digit2') setWeapon('pistol'); if (e.code === 'KeyF') deskStim(); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyQ') useStreak(); if (e.code === 'KeyK') deskStab(); if (e.code === 'KeyT') deskThrowKnife(); if (e.code === 'KeyX') deskThrow('flash'); if (e.code === 'Space' && P.chute === 'free') openChute(); if (e.code === 'KeyV') toggleRadio(); if (e.code === 'KeyE') interact(); }
+  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code === 'Digit1') setWeapon(P.prim); if (e.code === 'Digit2') setWeapon('pistol'); if (e.code === 'KeyF') deskStim(); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyQ') useStreak(); if (e.code === 'KeyZ') { binoDesk = !binoDesk; msg(binoDesk ? '🔭 Binokkel: klõps = märgi vastane / õhulöök' : '🔭 Binokkel ära', GOLD, 1.5); } if (e.code === 'KeyK') deskStab(); if (e.code === 'KeyT') deskThrowKnife(); if (e.code === 'KeyX') deskThrow('flash'); if (e.code === 'Space' && P.chute === 'free') openChute(); if (e.code === 'KeyV') toggleRadio(); if (e.code === 'KeyE') interact(); }
 });
 addEventListener('keyup', e => keys[e.code] = false);
 const mouseNDC = new THREE.Vector2();
-renderer.domElement.addEventListener('mousedown', e => { audioInit(); if (deskHover) { clickBtn(deskHover); return; } if (document.pointerLockElement !== renderer.domElement && (mode === 'play' || mode === 'hub') && !menuOpen()) { renderer.domElement.requestPointerLock(); return; } if (e.button === 0) mouseDown = true; if (e.button === 2) rmb = true; });
+renderer.domElement.addEventListener('mousedown', e => { audioInit(); if (deskHover) { clickBtn(deskHover); return; } if (binoDesk && e.button === 0 && document.pointerLockElement) { if (!binoMark()) binoStrike(); return; } if (document.pointerLockElement !== renderer.domElement && (mode === 'play' || mode === 'hub') && !menuOpen()) { renderer.domElement.requestPointerLock(); return; } if (e.button === 0) mouseDown = true; if (e.button === 2) rmb = true; });
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) rmb = false; });
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseNDC.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); if (document.pointerLockElement === renderer.domElement) { const s = P.ads ? 0.0008 : 0.0022; yaw -= e.movementX * s; pitch = clamp(pitch - e.movementY * s, -1.4, 1.4); } });
@@ -446,17 +448,18 @@ function startReload(){ const g = guns[P.weapon]; if (!g || P.rl || P.dead || P.
   if (g.kind === 'shotgun') P.rl = { k: 'shell', t: 0, n: 0, wasEmpty }; else P.rl = { k: 'mag', t: 0, dur: (g.kind === 'pistol' ? 1.35 : g.kind === 'sniper' ? 2.1 : 1.8) * (g.def.reloadK || 1), wasEmpty, ej: false, ins: false, rk: false }; }
 function cancelReload(){ P.rl = null; if (typeof ghost !== 'undefined') ghost.visible = ghostS.visible = false; }
 function ejectMag(keep){ const g = guns[P.weapon]; if (!g.hasMag || g.kind === 'shotgun') return; g.hasMag = false; g.mag.visible = false; const p = newProp('mag', g.g.localToWorld(g.magwell.clone())); p.live = true; p.vel.set(rand(-0.3, 0.3), -1, rand(-0.3, 0.3)); p.empty = true; if (!keep) g.ammo = 0; drawAmmo(g); S.mag(); }
-function insertMag(manual){ const g = guns[P.weapon]; const was = g.ammo === 0; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); if (manual && was && !P.rl) P.rl = { k: 'rack', t: 0 }; }
+function insertMag(manual){ const g = guns[P.weapon]; const was = g.ammo === 0; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); if (manual && was) { if (renderer.xr.isPresenting) { g.chambered = false; msg('🔧 Tõmba lukku! Vasak käsi relva taha → külgnupp → tõmba', GOLD, 3); } else if (!P.rl) P.rl = { k: 'rack', t: 0 }; } }
 function toggleNvg(){ if (!mission || !mission.night) return; P.nvg = !P.nvg; P.nvgSeen = false; nvgM.visible = P.nvg; S.beep(P.nvg ? 1200 : 600); applyLight(); }
 
 /* ===================== TULISTAMINE ===================== */
 const shootables = [];  // { test(o,d,maxT)->{t,part}, hit(point,part,dmg,dir) }
 function fire(){
-  if (P.mounted) return mountFire(); if (P.chute) return;
+  if (P.mounted) return mountFire(); if (P.chute) return; if (P.free) { why('🎒 Relv on seljas – võta see üle parema õla (külgnupp) või vajuta B'); return; }
   const g = guns[P.weapon], d = g.def;
-  if (P.rl) { if (P.rl.k === 'shell' && g.ammo > 0 && P.rl.t > 0.25) cancelReload(); else return; }
+  if (P.rl) { if (P.rl.k === 'shell' && g.ammo > 0 && P.rl.t > 0.25) cancelReload(); else { why('🔄 Laed…'); return; } }
+  if (g.chambered === false && g.hasMag && g.ammo > 0) { S.empty(); P.cool = 0.25; why('🔧 Tõmba lukku! Vasak käsi relva taha → külgnupp → tõmba tagasi'); return; }
   if (P.cool > 0 || P.dead || P.downed || P.swapT > 0.12 || P.boltT > 0 || P.pumpT > 0) return;
-  if (g.ammo <= 0 || !g.hasMag) { S.empty(); P.cool = 0.25; if (save.reload === 'manual' && renderer.xr.isPresenting && g.hasMag && !P.emptyHint) { P.emptyHint = true; msg('🔄 Tühi! A = salv välja, võta uus salv kõhult', GOLD, 2.5); } if (save.reload === 'auto' || !renderer.xr.isPresenting) startReload(); return; }
+  if (g.ammo <= 0 || !g.hasMag) { S.empty(); P.cool = 0.25; if (save.reload === 'manual' && renderer.xr.isPresenting) why(g.hasMag ? '🔄 TÜHI! A = salv välja → võta uus salv kõhult → pane relva → tõmba lukku' : '🔄 Salv puudu! Võta salv kõhult (vasak külgnupp) ja pane relva'); if (save.reload === 'manual' && renderer.xr.isPresenting && g.hasMag && !P.emptyHint) { P.emptyHint = true; msg('🔄 Tühi! A = salv välja, võta uus salv kõhult', GOLD, 2.5); } if (save.reload === 'auto' || !renderer.xr.isPresenting) startReload(); return; }
   g.ammo--; P.cool = d.rate; drawAmmo(g);
   const o = g.mz.getWorldPosition(V3()), q = g.g.getWorldQuaternion(new THREE.Quaternion()), base = V3(0, 0, -1).applyQuaternion(q);
   if (!renderer.xr.isPresenting) { camera.getWorldDirection(base); camera.getWorldPosition(tmpV); o.copy(tmpV).addScaledVector(base, 0.3); }
@@ -613,7 +616,7 @@ function glbSoldier(g, kind){
 function animGlb(e, dt, o){
   const m = e.m, want = o.dead ? null : o.moving ? (o.run ? 'Run' : 'Walk') : 'Idle';
   if (want && want !== m.cur) { const n = m.acts[want], p = m.acts[m.cur]; n.reset().setEffectiveWeight(1).fadeIn(0.25).play(); if (p) p.fadeOut(0.25); m.cur = want; }
-  if (o.dead) { if (!m.deadSet) { m.deadSet = true; for (const k in m.acts) m.acts[k].fadeOut(0.3); } m.mixer.update(dt); m.aim.visible = e.deadT < 0.2; if (!m.dropped) { m.dropped = true; const gw = m.gun.getWorldPosition(V3()); scene.attach(m.gun); m.gunFall = { v: V3(rand(-0.5, 0.5), 0.5, rand(-0.5, 0.5)), y: e.pos.y }; } return; }
+  if (o.dead) { if (!m.deadSet) { m.deadSet = true; for (const k in m.acts) m.acts[k].fadeOut(0.3); } m.mixer.update(dt); return; }
   if (m.acts[m.cur]) m.acts[m.cur].timeScale = o.run ? 1 : o.moving ? 1.1 : 1;
   camera.getWorldPosition(head); const dd = head.distanceTo(e.pos), far = dd > 22, sh = dd < 16;
   if (m.shadow !== sh) { m.shadow = sh; for (const q of m.meshes) q.castShadow = sh; }
@@ -673,6 +676,7 @@ function killEnemy(e, dir, part){
   if (game && game.onKill) game.onKill(e);
   if (game) streakKill();
   if (e.laser) { e.laser.visible = false; e.glint.visible = false; }
+  if (save.enemy !== 'robot') dropEnemyGun(e); addBodySearch(e);
   if (e.boss) { slowMo(2.5); explode(e.pos.clone().add(V3(0, 1, 0)), true, 2); radioSay('Kotkas', 'Juggernaut on maas! Suurepärane, Hunt!'); }
   else if (game && mode === 'play' && enemies.every(o => o.dead)) slowMo(1.4);
   if (Math.random() < 0.5) { const nb = enemies.find(o => !o.dead && o !== e && o.pos.distanceTo(e.pos) < 18); if (nb) shout(nb, 'down'); }
@@ -695,7 +699,7 @@ function updateEnemies(dt){
       if (e.deathType === 1) { const k1 = Math.min(1, e.deadT * 4), k2 = clamp((e.deadT - 0.25) * 2.5, 0, 1); g.rotation.set(0, e.yaw, 0); g.scale.y = 1 - 0.35 * k1; g.rotateOnWorldAxis(ax, k2 * Math.PI / 2); g.position.set(e.pos.x, e.pos.y, e.pos.z); for (const l of e.m.legs) { l.lg.rotation.x = 0.9 * k1; if (l.kn) l.kn.rotation.x = -1.6 * k1; } }
       else if (e.deathType === 2) { g.rotation.set(0, e.yaw + k * 1.6, 0); g.rotateOnWorldAxis(ax, -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.1, e.pos.z); }
       else { g.rotation.set(0, e.yaw, 0); g.rotateOnWorldAxis(ax, -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.15, e.pos.z); }
-      if (e.deadT > 12) { g.removeFromParent(); enemies.splice(i, 1); } continue; }
+      if (e.deadT > 30) { g.removeFromParent(); enemies.splice(i, 1); const k2 = inter.indexOf(e.lootIt); if (k2 >= 0) inter.splice(k2, 1); } continue; }
     const eye = V3(e.pos.x, e.pos.y + 1.55 - (e.crouchK || 0) * 0.5, e.pos.z), dist = eye.distanceTo(ph);
     const facing = Math.cos(Math.atan2(ph.x - e.pos.x, ph.z - e.pos.z) - (e.yaw + Math.PI)) > 0.2;
     let vis = (mission && mission.night && !P.nvgSeen && !e.alert ? 16 : 70) * (P.crouch && !e.alert ? 0.65 : 1); if (e.sniper) vis = e.alert ? 140 : (mission && mission.night ? 22 : 60);
@@ -783,7 +787,7 @@ function updTargets(dt){ for (const t of targets) { const goal = t.up ? 1 : 0; t
 let mode = 'hub', game = null, mission = null;
 function clearEnemies(){ clearMission(); for (const e of enemies) { e.m.g.removeFromParent(); if (e.m.gun) e.m.gun.removeFromParent(); } enemies.length = 0; for (let i = shootables.length - 1; i >= 0; i--) if (!targets.some(t => t.sh === shootables[i])) shootables.splice(i, 1); }
 function resetPlayer(x, z, rotY = 0, y = 0){
-  P.hp = P.maxHp = 100; P.armor = 0; P.dead = false; P.regenT = 0; P.frags = 3; P.smokes = 2; P.stims = 2; P.knives = 3; P.flashes = 2; if (typeof slowT !== 'undefined') slowT = 0; P.downed = false; P.mounted = false; P.chute = null; P.mTurn = 0; if (typeof mountG !== 'undefined') { mountG.visible = false; chuteG.visible = false; windSet(0); if (radioOpen) toggleRadio(false); } P.rl = null; P.boltT = P.pumpT = 0; P.nvg = false; nvgM.visible = false; hurtM.material.opacity = 0; for (const h of hands) if (h.held) { const p = h.held; h.held = null; p.held = null; }
+  P.hp = P.maxHp = 100; P.armor = 0; P.dead = false; P.regenT = 0; P.frags = 3; P.smokes = 2; P.stims = 2; P.knives = 3; P.flashes = 2; P.free = false; P.climbing = 0; P.autoClimb = null; P.deskDrag = null; P.rackVis = 0; P.togPull = [0, 0]; for (const h of hands) { h.inter = null; h.drag = null; } for (const k of WORDER) guns[k].chambered = true; if (typeof slowT !== 'undefined') slowT = 0; P.downed = false; P.mounted = false; P.chute = null; P.mTurn = 0; if (typeof mountG !== 'undefined') { mountG.visible = false; chuteG.visible = false; windSet(0); if (radioOpen) toggleRadio(false); } P.rl = null; P.boltT = P.pumpT = 0; P.nvg = false; nvgM.visible = false; hurtM.material.opacity = 0; for (const h of hands) if (h.held) { const p = h.held; h.held = null; p.held = null; }
   for (const k of WORDER) { const g = guns[k]; g.ammo = g.def.mag; g.hasMag = true; g.mag.visible = true; drawAmmo(g); } if (typeof ghost !== 'undefined') ghost.visible = ghostS.visible = false;
   for (const p of [...props]) removeProp(p); for (const s of smokes) s.parts = 0; smokes.length = 0;
   camera.getWorldPosition(head); rig.position.set(x - (renderer.xr.isPresenting ? head.x - rig.position.x : 0), y, z - (renderer.xr.isPresenting ? head.z - rig.position.z : 0));
@@ -822,7 +826,7 @@ function endGame(win, reason){
 function toHub(){ hideMenus(); clearEnemies(); clearTargets(); mission = null; game = null; mode = 'hub'; resetPlayer(0, 3, 0); applyLight(); buildHubTargets(); openMenu(); }
 function pauseGame(){ mode = 'pause'; if (actx) actx.suspend(); placeInFront(pauseG, 1.0, -0.1); pauseG.visible = true; if (document.pointerLockElement) document.exitPointerLock(); }
 function resumeGame(){ pauseG.visible = false; mode = 'play'; if (actx) actx.resume(); }
-function interact(){ camera.getWorldPosition(head); const p = nearPickup(head, 2.3, true); if (p) { takePickup(p, null); return; } if (game && game.interact) game.interact(); }
+function interact(){ camera.getWorldPosition(head); const p = nearPickup(head, 2.3, true); if (p) { takePickup(p, null); return; } if (deskInteract()) return; if (game && game.interact) game.interact(); }
 
 /* --- Hubi vabad märklauad --- */
 function buildHubTargets(){ clearTargets(); for (const [x, z, s] of [[-4.5, -10, 0.5], [-1.5, -15, 0.6], [1.5, -25, 0.8], [4.5, -50, 1.2], [0, -100, 2], [-6, -140, 2.5]]) makeTarget('bull', x, 1.2 + s * 0.2, z, { size: s, onHit: (t, loc) => { const r = Math.hypot(loc.x, loc.y - t.h / 2) / (t.w / 2); popTxt(t.g.position.clone().add(V3(0, t.h + 0.4, 0)), r < 0.25 ? '🎯 10' : r < 0.5 ? '8' : r < 0.8 ? '5' : '1', r < 0.25 ? GOLD : '#fff'); } }); }
@@ -902,7 +906,7 @@ function buildBuy(g){
 const missionG = new THREE.Group(); scene.add(missionG);
 let extraMeshes = [];
 let COL_BASE = 0;
-function clearMission(){ if (game && game.onClear) game.onClear(); if (game && game.onClear2) game.onClear2(); if (typeof rockets !== 'undefined') { clearDrops(); rockets.length = 0; } if (COL_BASE) COL.length = COL_BASE; while (missionG.children.length) missionG.children[0].removeFromParent(); for (const m of extraMeshes) m.removeFromParent(); extraMeshes = []; wireG.visible = false; heliSup.g.visible = false; }
+function clearMission(){ if (typeof resetDoors !== 'undefined') { resetDoors(); clearDrops2(); clearTempInter(); altP.mesh.visible = false; } if (game && game.onClear) game.onClear(); if (game && game.onClear2) game.onClear2(); if (typeof rockets !== 'undefined') { clearDrops(); rockets.length = 0; } if (COL_BASE) COL.length = COL_BASE; while (missionG.children.length) missionG.children[0].removeFromParent(); for (const m of extraMeshes) m.removeFromParent(); extraMeshes = []; wireG.visible = false; heliSup.g.visible = false; }
 function heliModel(){
   const g = new THREE.Group(), add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
   const body = std(0x3e4a33, { roughness: 0.6, metalness: 0.3 });
@@ -919,7 +923,7 @@ const jet = jetModel(); let jetT = 0, jetFrom = V3(), jetTo = V3(), jetBomb = nu
 function flyJet(from, to, bombAt){ jet.visible = true; jetT = 0; jetFrom.copy(from); jetTo.copy(to); jet.position.copy(from); jet.lookAt(to); jet.rotateY(Math.PI); jetBomb = bombAt; if (actx) { const t = actx.currentTime, o = out(from.clone().lerp(to, 0.4)); nz(t, 4, 500, 0.6, 'lowpass', o); tn(t, 220, 90, 4, 0.15, 'sawtooth', o); } }
 function updJet(dt){ if (!jet.visible) return; jetT += dt / 4; jet.position.lerpVectors(jetFrom, jetTo, jetT); if (jetBomb && jetT > 0.45) { const b = jetBomb; jetBomb = null; b.forEach((p, i) => setTimeout(() => explode(p, true), 500 + i * 220)); } if (jetT >= 1) jet.visible = false; }
 const intel = () => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.7), M.wood); t.position.y = 0.9; g.add(t); for (const [x, z] of [[-0.55, -0.3], [0.55, -0.3], [-0.55, 0.3], [0.55, 0.3]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.05), M.wood); l.position.set(x, 0.45, z); g.add(l); } const lb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), M.dark); lb.position.y = 0.94; g.add(lb); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.2), new THREE.MeshBasicMaterial({ color: 0x55ff99 })); sc.position.set(0, 1.04, -0.11); sc.rotation.x = -0.25; g.add(sc); const sb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), M.dark); sb.position.set(0, 1.04, -0.125); sb.rotation.x = -0.25; g.add(sb); missionG.add(g); return g; };
-function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0 && !a.downed) { a.downed = true; a.downT = 30; a.hp = 0; msg('❗ Kaaslane on maas! Elusta 💉 süstlaga', '#ff8a80', 3); allyTalk(a, 'Olen pihtas! Hunt, aita mind!', true); } }; m.g.position.copy(a.pos); return a; }
+function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0 && !a.downed) { a.downed = true; a.downT = 30; a.hp = 0; msg('❗ Kaaslane on maas! Tiri ta varju ja elusta 💉 süstlaga', '#ff8a80', 3); addDragFor(a); allyTalk(a, 'Olen pihtas! Hunt, aita mind!', true); } }; m.g.position.copy(a.pos); return a; }
 function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.downed && !a.dead) { a.downT -= dt; g.rotation.set(-Math.PI / 2 * 0.9, a.yaw, 0.4, 'YXZ'); g.position.copy(a.pos); g.position.y = 0.25; a.markT = (a.markT || 0) - dt; if (a.markT <= 0) { a.markT = 1.5; popTxt(a.pos.clone().add(V3(0, 1, 0)), `💉 ELUSTA ${Math.ceil(a.downT)}`, '#ff8a80'); } if (a.downT <= 0) { a.dead = true; msg('❗ Kaaslane langes!', '#ff8a80', 2); } return false; } if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; a.ph = a.ph || 0; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { const st = Math.min(d, speed * dt); a.pos.x += dx / d * st; a.pos.z += dz / d * st; a.yaw = Math.atan2(dx, dz) + Math.PI; moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.ph * 2)) * 0.03 : 0; g.rotation.set(0, a.yaw, 0); if (a.m.legs) { animLegs(a, moving, dt, speed > 2); animSoldier(a, dt, { alert: !moving, moving, pitch: 0 }); } return moving; }
 // objektiivid
 function objTick(g, dt){
@@ -946,9 +950,10 @@ function startMission(i){
   if (i === 0) startGame(Object.assign({}, base, { id: 'm1', mission: { id: 'm1', night: true, weapons: ['rifle', 'pistol', 'shotgun'] }, name: '🌙 Öine haarang', x: CX, z: CZ + 33, rot: 0, weapon: 'rifle', par: 300,
     intro: '🌙 Vajuta X (arvutis N) – öövaatlus! Kõrvalda laohoone valvurid.', say: 'Öine haarang. Lülita öövaatlus sisse.',
     init: g => { g.n = 10; squad([[CX + 12, CZ + 10], [CX + 16, CZ + 14], [CX + 10, CZ + 4, [[CX + 10, CZ + 4], [CX + 2, CZ + 4], [CX + 2, CZ + 20]]], [CX + 22, CZ + 4], [CX + 6, CZ + 19], [CX + 23, CZ + 20], [CX - 2, CZ + 12, [[CX - 2, CZ + 12], [CX - 2, CZ - 6]]], [CX + 5, CZ - 5], [CX - 9, CZ + 2], [CX + 27, CZ + 11]]);
-      const lp = intel(); lp.position.set(CX + 14, 0, CZ + 12); const hl = heliModel(); hl.g.visible = false; extraMeshes.push(hl.g); g.heli = hl;
+      const lp = intel(); lp.position.set(CX + 14, 0, CZ + 12); { const code = String(Math.floor(rand(1000, 9999))); pick(enemies.filter(e => !e.dead)).code = code; g.kp = makeKeypad(V3(CX + 13.35, 1.12, CZ + 12.2), -Math.PI / 2, code, () => { g.hacked = true; }, () => { msg('🚨 Vale kood 3x – häire!', '#ff5252', 2); for (let k = 0; k < 3; k++) { const e = spawnEnemy(EDGE[k][0], EDGE[k][1], { alert: true }); e.lastSeen = V3(CX + 14, 1.6, CZ + 12); } }); g.onClear = () => g.kp.cleanup(); }
+      const hl = heliModel(); hl.g.visible = false; extraMeshes.push(hl.g); g.heli = hl;
       g.objs = [{ t: g2 => `Kõrvalda valvurid (${g2.n - alive()}/${g2.n})`, pos: () => V3(CX + 14, 2, CZ + 12), done: () => alive() === 0, icon: '⚔' },
-        { t: 'Võta luureandmed – seisa sülearvuti juures', pos: V3(CX + 14, 1.2, CZ + 12), near: 1.5, hold: 2.5, icon: '💻', onDone: () => { lp.children[lp.children.length - 2].material.color.set(0x222222); say('Luureandmed käes. Mine kopteri juurde.'); } },
+        { t: g2 => g2.codeFound ? `💻 Sisesta kood ${g2.codeFound} sülearvuti klaviatuurile (vajuta nuppe)` : '💻 Häki sülearvuti – kood on ühe vastase taskus (haara laibast!)', pos: V3(CX + 14, 1.2, CZ + 12), done: g2 => g2.hacked, icon: '💻', onDone: () => { lp.children[lp.children.length - 2].material.color.set(0x222222); say('Luureandmed käes. Mine kopteri juurde.'); } },
         { t: 'Mine kopteri juurde! 🚁', pos: V3(CX, 0, CZ - 28), near: 4, icon: '🚁', onStart: g2 => { g2.heli.g.visible = true; g2.heli.g.position.set(CX - 60, 25, CZ - 60); g2.heliIn = 0; for (let k = 0; k < 4; k++) { const e = spawnEnemy(EDGE[k][0], EDGE[k][1], { alert: true }); e.lastSeen = V3(CX, 1.6, CZ - 20); } } }];
       g.extraTick = (g2, dt) => { if (g2.heli.g.visible) { g2.heliIn = Math.min(1, g2.heliIn + dt / 10); const p = V3(CX - 60, 25, CZ - 60).lerp(V3(CX, 1.6, CZ - 28), g2.heliIn); g2.heli.g.position.copy(p); g2.heli.g.rotation.y = -Math.PI * 0.75; g2.heli.rotor.rotation.y += dt * 25; g2.heli.tail.rotation.x += dt * 30; } return ''; };
     } }));
@@ -989,8 +994,8 @@ function startMission(i){
     startGame(Object.assign({}, base, { id: 'm5', mission: { id: 'm5', weapons: ['rifle', 'pistol', 'shotgun'] }, name: '💣 Pommi desarmeerimine', x: CX - 30, z: CZ + 30, rot: -Math.PI / 4, weapon: 'rifle', par: 120,
       intro: `💣 Luure: lõika ${COLS[ok][0]} juhe! Pomm on idaosa majas. Aega 2:30.`, say: `Lõika ${COLS[ok][0].toLowerCase()} juhe.`,
       init: g => { squad([[CX + 12, CZ - 10], [CX + 10, CZ - 14], [CX + 15, CZ - 5], [CX + 4, CZ - 12], [CX + 20, CZ - 18, [[CX + 20, CZ - 18], [CX + 20, CZ - 2]]], [CX + 2, CZ - 2], [CX - 6, CZ + 10], [CX + 24, CZ - 8], [CX - 14, CZ + 2]]);
-        addSniper(CX - 14, CZ + 12, 3.6); const bomb = new THREE.Group(); bomb.position.set(CX + 12, 0, CZ - 12.5); missionG.add(bomb); const cr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), M.wood); cr.position.y = 0.4; bomb.add(cr); const bx = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.35), M.dark); bx.position.y = 0.93; bomb.add(bx); COLS.forEach(([n, c], k) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.4, 6).rotateZ(Math.PI / 2), std(c)); w.position.set(0, 0.97, -0.1 + k * 0.06); bomb.add(w); }); const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff0000 })); led.position.set(0.18, 1.08, 0); bomb.add(led); g.led = led; g.left = 150;
-        g.objs = [{ t: g2 => `Leia pomm (lõika ${COLS[ok][0]})`, pos: V3(CX + 12, 1.3, CZ - 12.5), near: 1.4, icon: '💣', onDone: () => { openWires(COLS, ok); } }, { t: 'Lõika õige juhe!', pos: V3(CX + 12, 1.3, CZ - 12.5), done: () => false, icon: '✂' }];
+        addSniper(CX - 14, CZ + 12, 3.6); const bomb = new THREE.Group(); bomb.position.set(CX + 12, 0, CZ - 12.5); missionG.add(bomb); const cr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), M.wood); cr.position.y = 0.4; bomb.add(cr); const bx = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.35), M.dark); bx.position.y = 0.93; bomb.add(bx); COLS.forEach(([n, c], k) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.4, 6).rotateZ(Math.PI / 2), std(c)); w.position.set(0, 0.97, -0.15 + k * 0.1); bomb.add(w); }); const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff0000 })); led.position.set(0.18, 1.08, 0); bomb.add(led); g.led = led; g.left = 150;
+        g.objs = [{ t: g2 => `Leia pomm (lõika ${COLS[ok][0]})`, pos: V3(CX + 12, 1.3, CZ - 12.5), near: 1.4, icon: '💣', onDone: () => { if (renderer.xr.isPresenting) { physBomb(bomb, COLS, ok, () => { S.ok(); say('Pomm desarmeeritud'); msg('✔ Pomm desarmeeritud!', '#9cff57', 3); game.oi = 99; endGame(true); }, () => { explode(V3(CX + 12, 1, CZ - 12.5), true, 14); endGame(false, '💥 Vale juhe!'); }); msg('🔩 Keera 4 kruvi lahti: vii kontrolleri ots kruvile, hoia külgnuppu ja keera randmega', GOLD, 5); } else openWires(COLS, ok); } }, { t: renderer.xr.isPresenting ? '🔩 Keera kruvid lahti, siis haara õigest juhtmest ja tõmba!' : 'Lõika õige juhe!', pos: V3(CX + 12, 1.3, CZ - 12.5), done: () => false, icon: '✂' }];
         g.extraTick = (g2, dt) => { g2.left -= dt; g2.led.visible = Math.sin(g2.t * (g2.left < 30 ? 20 : 6)) > 0; if (Math.floor(g2.left) !== g2.lastBeep) { g2.lastBeep = Math.floor(g2.left); if (g2.left < 30) S.beep(1400); } if (g2.left <= 0) { wireG.visible = false; explode(V3(CX + 12, 1, CZ - 12.5), true, 14); endGame(false, '💥 Pomm plahvatas!'); return ''; } const tt = `⏱ ${Math.floor(g2.left / 60)}:${String(Math.floor(g2.left % 60)).padStart(2, '0')} • `; return tt + objTick(g2, dt); };
       } })); }
 }
@@ -1110,7 +1115,7 @@ function readXR(dt){
   const s = renderer.xr.getSession(); if (!s) return; let mx = 0, my = 0;
   for (const src of s.inputSources) {
     const gp = src.gamepad, h = hands.find(x => x.side === src.handedness); if (!gp || !h || h.isHand) continue;
-    const ax = gp.axes, b = gp.buttons, gr0 = b[1] && b[1].value > 0.5; if (src.handedness === 'right') edge('rgrip', gr0, () => rightGrab(h));
+    const ax = gp.axes, b = gp.buttons, gr0 = b[1] && b[1].value > 0.5; if (src.handedness === 'right') { edge('rgrip', gr0, () => rightGrabV2(h)); if (!gr0 && btnPrev.rgripHeld) rightRelease(h); btnPrev.rgripHeld = gr0; }
     const sx = ax.length >= 4 ? ax[2] : ax[0] || 0, sy = ax.length >= 4 ? ax[3] : ax[1] || 0;
     h.trig = b[0] && b[0].value > 0.5; const gr = b[1] && b[1].value > 0.5;
     if (src.handedness === 'left') {
@@ -1119,15 +1124,15 @@ function readXR(dt){
       edge('LS', b[3] && b[3].pressed, () => toggleRadio()); edge('X', b[4] && b[4].pressed, () => { if (!useStreak()) toggleNvg(); }); edge('Y', b[5] && b[5].pressed, () => { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); else if (mode === 'hub') { if (menuG.visible) hideMenus(); else openMenu(); } });
     } else {
       if (Math.abs(sx) > 0.7 && snapReady) { snapReady = false; turn(sx > 0 ? -Math.PI / 6 : Math.PI / 6); } else if (Math.abs(sx) < 0.3) snapReady = true;
-      edge('A', b[4] && b[4].pressed, () => { if (mode === 'play' || mode === 'hub') { if (save.reload === 'auto') startReload(); else ejectMag(); } }); edge('B', b[5] && b[5].pressed, () => { if (mode === 'play' || mode === 'hub') cycleWeapon(); });
+      edge('A', b[4] && b[4].pressed, () => { if (mode === 'play' || mode === 'hub') { if (save.reload === 'auto') startReload(); else ejectMag(); } }); edge('B', b[5] && b[5].pressed, () => { if (mode === 'play' || mode === 'hub') { if (P.free) drawWeapon(avail(P.prim) ? P.prim : 'rifle'); else cycleWeapon(); } });
       if (save.move === 'teleport') { if (sy < -0.6) tpAim = h; else if (tpAim === h && Math.abs(sy) < 0.2) { doTeleport(); tpAim = null; } }
     }
   }
   if (mode === 'play' || mode === 'hub') { const sw = swingSpeed(); if (sw > 0 && Math.hypot(mx, my) < 0.3) movePlayer(0, -1, dt, sw); else if (save.move === 'smooth') movePlayer(mx, my, dt, 2.2); }
 }
-function turn(a){ if (P.mounted || P.chute) { P.mTurn = (P.mTurn || 0) + a; if (P.chute) rig.rotation.y += a; return; } camera.getWorldPosition(head); rig.rotation.y += a; const after = camera.getWorldPosition(V3()); rig.position.x += head.x - after.x; rig.position.z += head.z - after.z; }
+function turn(a){ if (P.mounted || (P.chute && P.chute !== 'plane')) { P.mTurn = (P.mTurn || 0) + a; if (P.chute) rig.rotation.y += a; return; } camera.getWorldPosition(head); rig.rotation.y += a; const after = camera.getWorldPosition(V3()); rig.position.x += head.x - after.x; rig.position.z += head.z - after.z; }
 function movePlayer(mx, my, dt, sp){
-  const len = Math.hypot(mx, my); P.speed = 0; if (len < 0.15 || P.downed || P.mounted || P.chute) return;
+  const len = Math.hypot(mx, my); P.speed = 0; if (len < 0.15 || P.downed || P.mounted || (P.chute && P.chute !== 'plane') || P.climbing || P.autoClimb) return;
   camera.getWorldDirection(tmpD); tmpD.y = 0; tmpD.normalize(); const rx = -tmpD.z, rz = tmpD.x;
   const vx = (tmpD.x * -my + rx * mx) / Math.max(1, len) * sp * dt, vz = (tmpD.z * -my + rz * mx) / Math.max(1, len) * sp * dt;
   camera.getWorldPosition(head); const fy = rig.position.y;
@@ -1142,8 +1147,8 @@ function updTeleport(){ tpMark.visible = false; if (!tpAim) return; tpAim.ctrl.g
 // käed: esemed päriselt kehalt (taskud), maast ja leitavad asjad
 function grabInto(h, type){ const p = newProp(type, handPos(h, V3())); p.held = h; h.held = p; (h.isHand ? h.hHold : h.holder).attach(p.g); p.g.position.set(0, 0, 0); p.g.quaternion.identity(); p.grabAt = handPos(h, V3()); p.armed = false; S.click(); pulse(h, 0.4, 40); return p; }
 function leftGrab(h){
-  if (P.chute === 'free') { openChute(); return; }
-  if (h.held || mode === 'end' || mode === 'pause' || P.mounted) return; const hp = handPos(h, V3()), g = guns[P.weapon];
+  if (P.chute) { if (chuteGrab(h)) return; }
+  if (h.held || h.inter || mode === 'end' || mode === 'pause' || P.mounted) return; const hp = handPos(h, V3()), g = guns[P.weapon]; if (interactGrab(h, hp)) return;
   // kahe käega hoie
   if (g.fore && g.g.visible && !P.downed) { const f = g.g.localToWorld(g.fore.clone()); if (hp.distanceTo(f) < 0.16) { P.twoHand = true; return; } }
   const pk = nearPickup(hp, 0.32); if (pk) { takePickup(pk, h); return; }
@@ -1155,6 +1160,7 @@ function leftGrab(h){
   if (pn === 'frag' || pn === 'smoke') { if (pn === 'frag' ? P.frags <= 0 : P.smokes <= 0) { msg(pn === 'frag' ? '💣 Granaadid otsas' : '🌫️ Suitsud otsas', '#ff8a80', 1.2); S.bad(); return; } if (pn === 'frag') P.frags--; else P.smokes--; grabInto(h, pn); msg(pn === 'frag' ? '💣 Viska! (lase külgnupp lahti)' : '🌫️ Viska! (lase lahti)', GOLD, 1.2); return; }
   if (pn === 'knife') { grabInto(h, 'knife'); msg('🔪 Torka kiire liigutusega! Viska = lase lahti hoovõtuga', GOLD, 2); return; }
   if (pn === 'radio') { toggleRadio(true); pulse(h, 0.5, 60); return; }
+  if (pn === 'bino') { grabInto(h, 'bino'); msg('🔭 Tõsta silmade ette! Päästik = märgi vastane • hoia 2 s maapinnal = õhulöök', GOLD, 3); return; }
   if (pn === 'flash') { if (P.flashes <= 0) { msg('💥 Välkgranaadid otsas', '#ff8a80', 1.2); S.bad(); return; } P.flashes--; grabInto(h, 'flash'); msg('💥 Viska tuppa! Pimestab vastased', GOLD, 1.5); return; }
   if (pn === 'stim') { if (P.stims <= 0) { msg('💉 Süstlad otsas – leia 📦 varustuskast', '#ff8a80', 1.5); S.bad(); return; } P.stims--; grabInto(h, 'stim'); msg('💉 Torka rinda või reide! (või maas kaaslasele)', GOLD, 2); return; }
 }
@@ -1167,9 +1173,10 @@ function rightGrab(h){
 }
 function throwVel(h){ const now = performance.now(), hp = handPos(h, V3()); let best = h.vel.clone(); for (const s of h.hist || []) { const dtt = (now - s.t) / 1000; if (dtt > 0.03 && dtt < 0.12) { const v = hp.clone().sub(s.p).divideScalar(dtt); if (v.length() > best.length()) best = v; } } return best; }
 function leftRelease(h){
-  P.twoHand = false; const p = h.held; if (!p) return; h.held = null; p.held = null; scene.attach(p.g);
+  P.twoHand = false; if (interactRelease(h)) return; const p = h.held; if (!p) return; h.held = null; p.held = null; scene.attach(p.g);
   if (p.type === 'mag' || p.type === 'shell') { p.live = true; p.empty = true; p.vel.copy(h.vel); return; }
   if (p.type === 'stim') { removeProp(p); P.stims++; msg('💉 Süstal tagasi taskusse', '#b9c0a8', 1); return; }
+  if (p.type === 'bino') { removeProp(p); return; }
   const v = throwVel(h); v.multiplyScalar(1.6); if (v.length() > 24) v.setLength(24); if (v.length() > 2.5) v.y += 0.6;
   if (p.type === 'knife') { if (v.length() > 4.5 && P.knives > 0) { P.knives--; p.thrown = true; p.live = true; p.rest = false; p.vel.copy(v).multiplyScalar(1.15); S.whoosh(); } else removeProp(p); return; }
   p.live = true; p.rest = false; p.vel.copy(v); if (p.type === 'frag' && !p.cook) p.fuse = 3.0; if (p.type === 'flash') p.fuse = 1.6; p.cook = false; S.whoosh(); pulse(h, 0.3, 30);
@@ -1177,9 +1184,9 @@ function leftRelease(h){
 function checkMagInsert(){ for (const h of hands) { if (!h.connected || !h.held || h === R() && !L()) continue; const p = h.held, g = guns[P.weapon]; if (p.type !== 'mag' && p.type !== 'shell' && p.type !== 'stim') continue;
   if (p.type === 'stim') { const sp = p.g.getWorldPosition(V3()); if (!p.armed && sp.distanceTo(p.grabAt) > 0.2) p.armed = true; if (!p.armed) continue;
     const ally = game && allyList().find(a => a.downed && !a.dead && a.pos.clone().add(V3(0, 0.3, 0)).distanceTo(sp) < 0.6);
-    if (ally) { h.held = null; removeProp(p); reviveAlly(ally); pulse(h, 0.8, 100); continue; }
+    if (ally) { if (allyExposed(ally)) { why('⚠️ Vii ta enne varju! Vastane näeb teda (haara vestist ja tiri)'); continue; } h.held = null; removeProp(p); reviveAlly(ally); pulse(h, 0.8, 100); continue; }
     if (sp.distanceTo(bodyPt('chest')) < 0.14 || sp.distanceTo(bodyPt('thigh')) < 0.17 || sp.distanceTo(bodyPt('neck')) < 0.12) { h.held = null; removeProp(p); applyStim(); pulse(h, 1, 150); } continue; }
-  if (p.type === 'shell') { if (g.kind !== 'shotgun' || g.ammo >= g.def.mag) continue; const port = g.g.localToWorld(V3(0, -0.02, -0.08)); if (p.g.getWorldPosition(V3()).distanceTo(port) < 0.1 || handPos(h, V3()).distanceTo(port) < 0.11) { h.held = null; removeProp(p); g.ammo++; drawAmmo(g); S.shell(); pulse(h, 0.5, 40); } continue; }
+  if (p.type === 'shell') { if (g.kind !== 'shotgun' || g.ammo >= g.def.mag) continue; const port = g.g.localToWorld(V3(0, -0.02, -0.08)); if (p.g.getWorldPosition(V3()).distanceTo(port) < 0.1 || handPos(h, V3()).distanceTo(port) < 0.11) { h.held = null; removeProp(p); if (g.ammo === 0) g.chambered = false; g.ammo++; drawAmmo(g); S.shell(); pulse(h, 0.5, 40); } continue; }
   if (g.kind === 'shotgun' || g.hasMag && g.ammo === g.def.mag) continue; const mw = g.g.localToWorld(g.magwell.clone()); if (handPos(h, V3()).distanceTo(mw) < 0.13 || p.g.getWorldPosition(V3()).distanceTo(mw) < 0.11) { h.held = null; removeProp(p); if (g.hasMag) ejectMag(true); cancelReload(); insertMag(true); pulse(h, 0.6, 50); pulse(R(), 0.6, 50); } } }
 // päris käte žestid
 const J = (h, n) => h.hand.joints && h.hand.joints[n];
@@ -1188,13 +1195,13 @@ function handGestures(h){
   const Pp = palm.getWorldPosition(V3()), I = it.getWorldPosition(V3()), T = th.getWorldPosition(V3());
   const curl = (I.distanceTo(Pp) + mt.getWorldPosition(V3()).distanceTo(Pp) + rt.getWorldPosition(V3()).distanceTo(Pp)) / 3, pinch = I.distanceTo(T);
   h.hHold.position.copy(Pp); w.getWorldQuaternion(h.hHold.quaternion);
-  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; h.selTrig = false; const fist = curl < 0.07; if (fist && !h.rFist) rightGrab(h); h.rFist = fist; const mm = J(h, 'middle-finger-metacarpal'), im = J(h, 'index-finger-metacarpal'), pm = J(h, 'pinky-finger-metacarpal'); if (mm && im && pm) { const W0 = w.getWorldPosition(V3()), fwd = mm.getWorldPosition(V3()).sub(W0).normalize(), side = im.getWorldPosition(V3()).sub(pm.getWorldPosition(V3())).normalize(); const up = side.sub(fwd.clone().multiplyScalar(side.dot(fwd))).normalize(), zAx = fwd.clone().negate(), xAx = up.clone().cross(zAx); h.gunQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, up, zAx)); } }
+  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; h.selTrig = false; const fist = curl < 0.07; if (fist && !h.rFist) rightGrabV2(h); if (!fist && h.rFist) rightRelease(h); h.rFist = fist; const mm = J(h, 'middle-finger-metacarpal'), im = J(h, 'index-finger-metacarpal'), pm = J(h, 'pinky-finger-metacarpal'); if (mm && im && pm) { const W0 = w.getWorldPosition(V3()), fwd = mm.getWorldPosition(V3()).sub(W0).normalize(), side = im.getWorldPosition(V3()).sub(pm.getWorldPosition(V3())).normalize(); const up = side.sub(fwd.clone().multiplyScalar(side.dot(fwd))).normalize(), zAx = fwd.clone().negate(), xAx = up.clone().cross(zAx); h.gunQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, up, zAx)); } }
   else { const closed = curl < 0.07, open = curl > 0.085; if (!h.gClosed && closed) { h.gClosed = true; leftGrab(h); } else if (h.gClosed && open) { h.gClosed = false; leftRelease(h); } }
 }
 
 /* ===================== RELVA ASEND JA SIHIK ===================== */
 function updateWeapon(dt){
-  const g = guns[P.weapon]; if (!g) return; g.g.visible = !P.mounted && !P.chute; if (P.mounted || P.chute) { laserDot.visible = laserBeam.visible = false; return; }
+  const g = guns[P.weapon]; if (!g) return; g.g.visible = !P.mounted && !P.chute && !P.free; if (P.mounted || P.chute || P.free) { laserDot.visible = laserBeam.visible = false; return; }
   if (renderer.xr.isPresenting) {
     const h = R(); if (!h) { g.g.visible = false; return; }
     if (h.isHand) { g.g.position.copy(h.hHold.position); if (h.gunQ) g.g.quaternion.copy(h.gunQ); else g.g.quaternion.copy(h.hHold.quaternion); g.g.translateY(0.04); }
@@ -1205,12 +1212,12 @@ function updateWeapon(dt){
   } else {
     const ads = rmb && mode !== 'end'; P.ads = ads; const targ = ads ? V3(0, -g.sightY - 0.0, -0.3) : V3(0.17, -0.2, -0.38);
     camera.updateMatrixWorld(); const lp = targ; if (P.rl) { lp.y -= 0.05; lp.x -= 0.05; } if (P.speed > 0 && !ads) { const bt = performance.now() / 1000 * (P.speed > 3 ? 11 : 8); lp.x += Math.sin(bt) * 0.008; lp.y += Math.abs(Math.cos(bt)) * 0.01; } g.g.position.copy(camera.localToWorld(lp.clone())); g.g.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion())); applyAnimPose(g, dt);
-    const fov = ads ? (g.zoom ? 75 / g.zoom : 55) : 75; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
+    const fov = binoDesk ? 75 / 7 : ads ? (g.zoom ? 75 / g.zoom : 55) : 75; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
     document.getElementById('cross').style.display = ads && !g.zoom ? 'none' : '';
   }
   // laser (VR sihtimisabi)
   laserDot.visible = laserBeam.visible = false;
-  if (renderer.xr.isPresenting && !g.zoom && mode !== 'end' && !P.rl) { const o = g.mz.getWorldPosition(V3()), d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); let t = castWorld(o, d, 120).t; for (const sh of shootables) { const r = sh.test(o, d, t); if (r && r.t < t) t = r.t; } if (t < 120) { laserDot.position.copy(o).addScaledVector(d, t - 0.02); laserDot.scale.setScalar(Math.max(1, t * 0.08)); laserDot.visible = true; } laserBeam.position.copy(o); laserBeam.lookAt(o.clone().add(d)); laserBeam.scale.set(1, 1, Math.min(t, 120)); laserBeam.rotation.z = 0; laserBeam.visible = true; }
+  if (renderer.xr.isPresenting && g.kind !== 'sniper' && mode !== 'end' && !P.rl) { const o = g.mz.getWorldPosition(V3()), d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); let t = castWorld(o, d, 120).t; for (const sh of shootables) { const r = sh.test(o, d, t); if (r && r.t < t) t = r.t; } if (t < 120) { laserDot.position.copy(o).addScaledVector(d, t - 0.02); laserDot.scale.setScalar(Math.max(1, t * 0.08)); laserDot.visible = true; } laserBeam.position.copy(o); laserBeam.lookAt(o.clone().add(d)); laserBeam.scale.set(1, 1, Math.min(t, 120)); laserBeam.rotation.z = 0; laserBeam.visible = true; }
   // laadimine (taimer)
   updReload(g, dt);
   // snaipri sihiku pilt
@@ -1252,8 +1259,9 @@ function applyAnimPose(g, dt){
   if (P.slashT > 0) { const s = Math.sin(P.slashT / 0.35 * Math.PI); g.g.translateY(-0.12 * s); g.g.rotateZ(0.7 * s); }
   if (P.pose.rz) g.g.rotateZ(P.pose.rz); if (P.pose.rx) g.g.rotateX(P.pose.rx);
   if (g.slide) g.slide.position.z = (g.ammo === 0 ? 0.032 : 0) + P.slideK * 0.028;
-  if (g.charge) g.charge.position.z = 0.075 + (P.rl && P.rl.chg ? P.rl.chg * 0.07 : 0) + (g.kind !== 'pistol' ? P.slideK * 0.01 : 0);
-  if (g.pump) g.pump.position.z = -0.42 + (P.pumpVis || 0) * 0.09;
+  if (g.slide && P.rackVis) g.slide.position.z += P.rackVis;
+  if (g.charge) g.charge.position.z = 0.075 + (P.rackVis || 0) + (P.rl && P.rl.chg ? P.rl.chg * 0.07 : 0) + (g.kind !== 'pistol' ? P.slideK * 0.01 : 0);
+  if (g.pump) g.pump.position.z = -0.42 + (P.pumpVis || 0) * 0.09 + (g.kind === 'shotgun' ? (P.rackVis || 0) : 0);
   if (g.bolt) { const u = P.boltT > 0 ? 1 - P.boltT / 0.8 : 0; g.bolt.rotation.z = u <= 0 ? 0 : u < 0.2 ? u / 0.2 * 1.3 : u > 0.8 ? (1 - u) / 0.2 * 1.3 : 1.3; g.bolt.position.z = 0.03 + (u > 0.2 && u < 0.8 ? Math.sin((u - 0.2) / 0.6 * Math.PI) * 0.075 : 0); }
 }
 /* --- vastaste animatsioonid, laadimine, granaadid --- */
@@ -1283,11 +1291,11 @@ function goDown(){ P.downed = true; P.downT = 12; P.hp = 0; cancelReload(); P.tw
 function restoreDownY(){ if (renderer.xr.isPresenting && P.downY != null) rig.position.y = P.downY; P.downY = null; }
 function applyStim(){ if (P.downed) { P.downed = false; restoreDownY(); P.hp = 60; msg('💉 ELUSTATUD! Tagasi lahingusse!', '#9cff57', 2.5); say('Olen jälle püsti'); } else { P.hp = P.maxHp; msg('💉 Elud täis!', '#9cff57', 1.5); } P.regenT = 0; S.stim(); hurtM.material.color.set(0x40ff90); hurtM.material.opacity = 0.35; }
 function reviveAlly(a){ a.downed = false; a.hp = 60; S.stim(); msg('💉 Kaaslane elustatud!', '#9cff57', 2); allyTalk(a, 'Aitäh, Hunt! Olen jälle püsti.', true); addXp(15); }
-function deskStim(){ if (mode !== 'play' && mode !== 'hub') return; if (P.stims <= 0) { msg('💉 Süstlad otsas – leia 📦 varustuskast', '#ff8a80', 1.5); S.bad(); return; } camera.getWorldPosition(head); const a = game && allyList().find(x => x.downed && !x.dead && Math.hypot(x.pos.x - head.x, x.pos.z - head.z) < 2.3); if (a) { P.stims--; reviveAlly(a); return; } if (!P.downed && P.hp >= P.maxHp) { msg('❤️ Elud on täis', '#b9c0a8', 1.2); return; } P.stims--; applyStim(); }
+function deskStim(){ if (mode !== 'play' && mode !== 'hub') return; if (P.stims <= 0) { msg('💉 Süstlad otsas – leia 📦 varustuskast', '#ff8a80', 1.5); S.bad(); return; } camera.getWorldPosition(head); const a = game && allyList().find(x => x.downed && !x.dead && Math.hypot(x.pos.x - head.x, x.pos.z - head.z) < 2.3); if (a) { if (allyExposed(a)) { msg('⚠️ Vii ta enne varju! (E = tiri)', '#ff8a80', 2); return; } P.stims--; reviveAlly(a); P.deskDrag = null; return; } if (!P.downed && P.hp >= P.maxHp) { msg('❤️ Elud on täis', '#b9c0a8', 1.2); return; } P.stims--; applyStim(); }
 function allyShoot(a, dt, range){ if (a.dead || a.downed || !a.m) return; a.shootT = (a.shootT || rand(1, 3)) - dt; if (a.shootT > 0) return; a.shootT = rand(1.4, 2.8); const mz = a.m.mz.getWorldPosition(V3()); const tgt = enemies.find(e => !e.dead && e.alert && e.pos.distanceTo(a.pos) < range && los(mz, e.pos.clone().add(V3(0, 1.2, 0)))); if (!tgt) return; a.yaw = Math.atan2(tgt.pos.x - a.pos.x, tgt.pos.z - a.pos.z) + Math.PI; a.m.g.rotation.y = a.yaw; if (Math.random() < 0.25) allyTalk(a, pick(['Kontakt!', 'Vastane eespool!', 'Katan sind, Hunt!', 'Tulistan!', 'Ta on seal!'])); tracer(mz, tgt.pos.clone().add(V3(0, 1.3, 0)), 0x9fd7ff); S.enemyShot(mz); if (Math.random() < 0.28) damageEnemy(tgt, 40, tgt.pos.clone().add(V3(0, 1.2, 0)), V3(0, 0, 1), 'body'); }
 /* --- nähtav keha ja taskud --- */
 const bodyG = new THREE.Group(); scene.add(bodyG);
-const POUCH = { mag1: V3(-0.12, -0.45, -0.16), mag2: V3(-0.02, -0.45, -0.16), stim: V3(-0.11, -0.2, -0.16), frag: V3(0.07, -0.2, -0.16), smoke: V3(0.18, -0.25, -0.14), holster: V3(0.24, -0.68, -0.02), back: V3(0.18, -0.02, 0.1), knife: V3(-0.03, -0.07, -0.15), radio: V3(-0.2, -0.05, -0.09), flash: V3(0.18, -0.4, -0.12), chest: V3(0, -0.22, -0.16), thigh: V3(-0.12, -0.85, -0.08), neck: V3(0, 0, -0.06) };
+const POUCH = { mag1: V3(-0.12, -0.45, -0.16), mag2: V3(-0.02, -0.45, -0.16), stim: V3(-0.11, -0.2, -0.16), frag: V3(0.07, -0.2, -0.16), smoke: V3(0.18, -0.25, -0.14), holster: V3(0.24, -0.68, -0.02), back: V3(0.18, -0.02, 0.1), knife: V3(-0.03, -0.07, -0.15), bino: V3(-0.25, -0.56, -0.05), radio: V3(-0.2, -0.05, -0.09), flash: V3(0.18, -0.4, -0.12), chest: V3(0, -0.22, -0.16), thigh: V3(-0.12, -0.85, -0.08), neck: V3(0, 0, -0.06) };
 const pouchMesh = {}, bodyLegs = [], stow = {};
 { const vestB = std(0x3b4030, { roughness: 0.9 }), pm = std(0x4a5236, { roughness: 0.95 }), white = std(0xeeeeee);
   const bb = (w, h, d, x, y, z, m, par = bodyG) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; par.add(b); return b; };
@@ -1300,12 +1308,13 @@ const pouchMesh = {}, bodyLegs = [], stow = {};
   { const g = new THREE.Group(); g.position.set(0.24, -0.7, -0.02); bodyG.add(g); bb(0.05, 0.14, 0.07, 0, 0, 0, M.dark, g); pouchMesh.holster = g; }
   { const g = new THREE.Group(); g.position.set(-0.03, -0.12, -0.15); bodyG.add(g); bb(0.04, 0.12, 0.025, 0, 0, 0, M.dark, g); bb(0.022, 0.09, 0.03, 0, 0.1, 0, M.dark, g); bb(0.05, 0.012, 0.02, 0, 0.055, 0, M.metal, g); pouchMesh.knife = g; }
   { const g = new THREE.Group(); g.position.set(-0.2, -0.06, -0.09); bodyG.add(g); bb(0.06, 0.1, 0.04, 0, 0, 0, M.dark, g); const an = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.2, 4), M.dark); an.position.set(0.02, 0.14, 0); g.add(an); const led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), new THREE.MeshBasicMaterial({ color: 0x40ff60 })); led.position.set(-0.015, 0.035, -0.021); g.add(led); pouchMesh.radio = g; }
+  { const g = new THREE.Group(); g.position.set(-0.25, -0.58, -0.05); bodyG.add(g); bb(0.07, 0.09, 0.07, 0, 0, 0, pm, g); for (const x of [-0.018, 0.018]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.06, 8), M.dark); c.position.set(x, 0.06, 0); g.add(c); } pouchMesh.bino = g; }
   { const g = new THREE.Group(); g.position.set(0.18, -0.42, -0.12); bodyG.add(g); bb(0.06, 0.08, 0.05, 0, 0, 0, pm, g); const cn = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.05, 10), std(0x3a4a5a)); cn.position.y = 0.06; g.add(cn); g.userData.item = cn; pouchMesh.flash = g; }
   for (const x of [-0.1, 0.1]) { const lg = new THREE.Group(); lg.position.set(x, -0.64, 0); bodyG.add(lg); const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8), M.camo); t.position.y = -0.22; t.castShadow = true; lg.add(t); const kn = new THREE.Group(); kn.position.y = -0.44; lg.add(kn); const sh = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.28, 4, 8), M.camo); sh.position.y = -0.18; sh.castShadow = true; kn.add(sh); bb(0.11, 0.09, 0.24, 0, -0.4, -0.04, M.dark, kn); bodyLegs.push({ lg, kn }); }
   for (const k of WORDER) { const s = buildGun(k); s.ammoP.mesh.visible = false; s.flashM.visible = false; if (s.lens) s.lens.visible = false; if (s.lensA) s.lensA.visible = false; s.g.visible = false; bodyG.add(s.g); if (k === 'pistol') { s.g.position.set(0.25, -0.62, -0.03); s.g.rotation.set(Math.PI / 2, 0, 0); } else { s.g.position.set(0.15, -0.3, 0.16); s.g.rotation.set(-Math.PI / 2 + 0.15, 0, -0.45); } stow[k] = s; }
 }
 function bodyPt(n){ return bodyG.localToWorld(POUCH[n].clone()); }
-function nearestPouch(p, r){ let best = null, bd = r; for (const n of ['mag1', 'mag2', 'stim', 'frag', 'smoke', 'knife', 'radio', 'flash']) { const d = bodyPt(n).distanceTo(p); if (d < bd) { bd = d; best = n; } } return best; }
+function nearestPouch(p, r){ let best = null, bd = r; for (const n of ['mag1', 'mag2', 'stim', 'frag', 'smoke', 'knife', 'radio', 'flash', 'bino']) { const d = bodyPt(n).distanceTo(p); if (d < bd) { bd = d; best = n; } } return best; }
 function updBody(dt){
   camera.getWorldPosition(head); camera.getWorldQuaternion(tmpQ);
   let f = V3(0, 0, -1).applyQuaternion(tmpQ); if (Math.hypot(f.x, f.z) < 0.4) f = V3(0, 1, 0).applyQuaternion(tmpQ).multiplyScalar(f.y < 0 ? 1 : -1);
@@ -1316,7 +1325,7 @@ function updBody(dt){
   const legLen = clamp(neck.y - (renderer.xr.isPresenting ? rig.position.y : (P.downed ? 0 : rig.position.y)) - 0.64, 0.15, 1.3), ls = legLen / 0.89, ph = performance.now() / 1000 * (P.speed > 3.5 ? 11 : 7);
   bodyLegs.forEach((l, i) => { l.lg.scale.y = ls; const s = P.speed > 0 ? Math.sin(ph + i * Math.PI) * (P.speed > 3.5 ? 0.6 : 0.35) : 0; l.lg.rotation.x += (s - l.lg.rotation.x) * Math.min(1, dt * 12); l.kn.rotation.x = P.speed > 0 ? -Math.max(0, Math.sin(ph + i * Math.PI + 1.2)) * 0.6 : 0; });
   pouchMesh.frag.userData.item.visible = P.frags > 0; pouchMesh.smoke.userData.item.visible = P.smokes > 0; pouchMesh.stim.userData.item.visible = P.stims > 0; pouchMesh.flash.userData.item.visible = P.flashes > 0;
-  for (const k of WORDER) stow[k].g.visible = k === 'pistol' ? P.weapon !== 'pistol' : P.weapon === 'pistol' && k === P.prim;
+  for (const k of WORDER) stow[k].g.visible = k === 'pistol' ? (P.weapon !== 'pistol' || P.free) : k === P.prim && (P.weapon === 'pistol' || P.free); if (typeof ripM !== 'undefined') ripM.visible = P.chute === 'free';
   bodyG.updateMatrixWorld(true);
   // käsi tasku juures: tasku helendab + väike värin
   for (const n in pouchMesh) pouchMesh[n].scale.setScalar(1);
@@ -1423,34 +1432,44 @@ const chuteG = new THREE.Group(); chuteG.visible = false; scene.add(chuteG);
 let windN = null;
 function windSet(v){ if (!actx) return; if (!windN) { const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 700; const gn = actx.createGain(); gn.gain.value = 0; s.connect(f); f.connect(gn); gn.connect(sfx); s.start(); windN = { s, gn, f }; } windN.gn.gain.setTargetAtTime(v, actx.currentTime, 0.2); windN.f.frequency.setTargetAtTime(400 + v * 1200, actx.currentTime, 0.2); }
 function topAt(x, z, maxY){ let t = 0; for (const c of COL) if (x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1 && c.y1 <= maxY && c.y1 > t) t = c.y1; return t; }
-function openChute(){ if (P.chute !== 'free') return; P.chute = 'open'; chuteG.visible = true; S.whoosh(); S.boom(null); for (const h of hands) pulse(h, 1, 250); msg('🪂 Langevari avatud! Vasak käsi alla = vasakule, parem alla = paremale, mõlemad alla = pidurda', GOLD, 4); radioSay('Kotkas', 'Varjud avatud. Juhi suitsu juurde, Hunt.'); }
+function openChute(){ if (P.chute !== 'free') return; P.chute = 'open'; chuteG.visible = true; S.whoosh(); S.boom(null); for (const h of hands) pulse(h, 1, 250); msg('🪂 Varjud lahti! Haara KOLLASTEST juhtnööridest: tõmba vasakut = vasakule, paremat = paremale, mõlemat = pidurda', GOLD, 5); radioSay('Kotkas', 'Varjud avatud. Juhi suitsu juurde, Hunt.'); }
 function chuteMission(){
   const LZ = V3(CX - 4, 0, CZ + 26);
   const base = { lowerBetter: true, tick: (g, dt) => { const s = g.extraTick ? g.extraTick(g, dt) : ''; return s || objTick(g, dt); }, score: missionScore, winTitle: 'MISSIOON TÄIDETUD' };
   startGame(Object.assign({}, base, { id: 'm7', mission: { id: 'm7', weapons: ['rifle', 'pistol', 'shotgun'] }, name: '🪂 Langevarjuhüpe', x: CX + 30, z: CZ + 110, y: 230, rot: 0, weapon: 'rifle', par: 260,
-    intro: '🪂 HÜPPA! Ava langevari külgnupuga (arvutis TÜHIK)', say: 'Hunt, hüppa! Ava varjud õigel ajal.',
-    init: g => { P.chute = 'free'; P.chuteYaw = Math.atan2(-(LZ.x - (CX + 30)), -(LZ.z - (CZ + 110))); P.mTurn = 0; g.vy = 10; g.noTargetPlayer = true;
+    intro: '✈️ Oled lennukis! Roheline tuli = kõnni kaldteelt välja. Varjud: punane käepide paremal rinnal (arvutis TÜHIK)', say: 'Hunt, oota rohelist tuld ja hüppa.',
+    init: g => { P.chute = 'plane'; P.chuteYaw = Math.atan2(-(LZ.x - (CX + 30)), -(LZ.z - (CZ + 110))); P.mTurn = 0; g.vy = 0; g.vh = 0; g.noTargetPlayer = true; g.noGravity = true;
+      const pl = planeModel(); pl.position.set(CX + 30, 230, CZ + 110); pl.rotation.y = P.chuteYaw; pl.updateMatrixWorld(true); g.plane = pl; const st = pl.localToWorld(V3(0, 0, -3)); rig.position.set(st.x, 230, st.z); if (renderer.xr.isPresenting) rig.rotation.y = P.chuteYaw + Math.PI; else { yaw = P.chuteYaw + Math.PI; pitch = 0; }
       squad([[CX + 12, CZ + 10], [CX + 16, CZ + 14], [CX + 10, CZ + 4, [[CX + 10, CZ + 4], [CX + 2, CZ + 4], [CX + 2, CZ + 20]]], [CX + 22, CZ + 4], [CX + 6, CZ + 19], [CX - 12, CZ - 8], [CX - 2, CZ + 12, [[CX - 2, CZ + 12], [CX - 2, CZ - 6]]], [CX + 5, CZ - 5], [CX - 9, CZ + 2], [CX + 12, CZ - 12]]);
       const hl = heliModel(); extraMeshes.push(hl.g); hl.g.position.set(CX, 1.6, CZ - 28); hl.g.rotation.y = 0.4; hl.g.visible = false; g.heli = hl; g.lzT = 0;
-      g.objs = [{ t: g2 => P.chute === 'free' ? `🪂 Vabalangus! ${Math.round(rig.position.y)} m – ava langevari!` : `🪂 Maandu rohelise suitsu juurde • ${Math.round(rig.position.y)} m`, pos: LZ, done: () => !P.chute, icon: '🪂' },
+      g.objs = [{ t: g2 => P.chute === 'plane' ? (g2.t > 5 ? '🟢 HÜPPA! Kõnni kaldteelt välja (taha)' : '🔴 Oota rohelist tuld…') : P.chute === 'free' ? `🪂 Vabalangus! ${Math.round(rig.position.y)} m – ava langevari!` : `🪂 Maandu rohelise suitsu juurde • ${Math.round(rig.position.y)} m`, pos: LZ, done: () => !P.chute, icon: '🪂' },
         { t: g2 => `Kõrvalda vastased (${10 - alive()}/10)`, pos: () => V3(CX + 8, 2, CZ + 6), done: () => alive() === 0, icon: '⚔' },
         { t: 'Mine evakuatsioonikopteri juurde! 🚁', pos: V3(CX, 0, CZ - 28), near: 4, icon: '🚁', onStart: g2 => { g2.heli.g.visible = true; radioSay('Kotkas', 'Kopter on maandunud lõunaväravas. Tule, Hunt!'); } }];
       g.extraTick = (g2, dt) => {
         if (Math.random() < dt * 25) emit(LZ.clone().add(V3(rand(-0.4, 0.4), 0.3, rand(-0.4, 0.4))), V3(rand(-0.3, 0.3), rand(1.5, 2.5), rand(-0.3, 0.3)), pick([0x7cff4f, 0x5ad13a, 0x9cff7a]), 1.2, 4, 0, 0.5);
         if (g2.heli.g.visible) { g2.heli.rotor.rotation.y += dt * 25; g2.heli.tail.rotation.x += dt * 30; }
         camera.getWorldPosition(head);
+        if (g2.plane) { const pl = g2.plane, v = V3(-Math.sin(pl.rotation.y), 0, -Math.cos(pl.rotation.y)).multiplyScalar(20 * dt); pl.position.add(v); pl.updateMatrixWorld(true); if (P.chute !== 'plane') { g2.planeT = (g2.planeT || 0) + dt; if (g2.planeT > 20) { pl.visible = false; } } else { rig.position.add(v); rig.position.y = pl.position.y; scene.fog.near = 150; scene.fog.far = 1100;
+            const lp2 = pl.worldToLocal(head.clone()); if (Math.abs(lp2.x) > 1.3) rig.position.add(V3(Math.sign(lp2.x) * 1.3 - lp2.x, 0, 0).applyQuaternion(pl.quaternion)); if (lp2.z < -6.2) rig.position.add(V3(0, 0, -6.2 - lp2.z).applyQuaternion(pl.quaternion));
+            const green = g2.t > 5; pl.userData.lamp.material.color.set(green ? 0x20ff40 : 0xff2020); if (green && !g2.greenSaid) { g2.greenSaid = true; S.beep(1200); msg('🟢 ROHELINE TULI – HÜPPA! Kõnni kaldteelt välja', '#9cff57', 4); radioSay('Kotkas', 'Roheline tuli! Hüppa, Hunt!'); }
+            windSet(lp2.z > 4 ? 0.3 : 0.12);
+            if (lp2.z > 8.0) { P.chute = 'free'; P.chuteYaw = pl.rotation.y; g2.vy = 0; g2.vh = 12; msg('🪂 VABALANGUS! Haara PUNASEST käepidemest paremal rinnal ja tõmba!', GOLD, 4); S.whoosh(); for (const h of hands) pulse(h, 0.8, 300); }
+            return ''; } }
+        if (P.chute && renderer.xr.isPresenting && L()) { const lh = L(); altP.mesh.visible = true; lh.grip.localToWorld(altP.mesh.position.set(0, 0.05, 0.06)); altP.mesh.lookAt(head); g2.altT = (g2.altT || 0) - dt; if (g2.altT <= 0) { g2.altT = 0.2; const a = Math.round(rig.position.y); altP.draw((c, W, H) => { c.fillStyle = '#0b0b0b'; c.fillRect(0, 0, W, H); txt(c, `↓ ${a} m`, W / 2, H / 2, H * 0.6, a < 60 ? '#ff5252' : '#9cff57', 'bold'); }); } } else altP.mesh.visible = false;
+        if (P.chute && rig.position.y > 120 && rig.position.y < 190 && Math.random() < dt * 30) emit(head.clone().add(V3(rand(-14, 14), rand(-25, 5), rand(-14, 14))), V3(0, 3, 0), 0xf4f6f8, rand(5, 9), 2.5, 0, 1);
         if (P.chute) { scene.fog.near = 150; scene.fog.far = 1100;
           let turnK = 0, brake = 0;
           if (renderer.xr.isPresenting) { const lh = L(), rh = R(); if (lh && rh && lh !== rh) { const ly = handPos(lh, V3()).y, ry = handPos(rh, V3()).y, df = ry - ly; if (Math.abs(df) > 0.1) turnK = clamp(df / 0.3, -1, 1); if (ly < head.y - 0.55 && ry < head.y - 0.55) brake = 1; } const s = renderer.xr.getSession(); if (s) for (const src of s.inputSources) { const gp = src.gamepad; if (gp && src.handedness === 'left' && gp.axes.length >= 4) { if (Math.abs(gp.axes[2]) > 0.3) turnK = -gp.axes[2]; if (gp.axes[3] > 0.5) brake = 1; } } }
           else { turnK = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0); brake = keys.KeyS ? 1 : 0; }
+          if (P.togPull[0] || P.togPull[1]) { turnK = clamp((P.togPull[0] - P.togPull[1]) * 1.5, -1, 1); brake = Math.min(P.togPull[0], P.togPull[1]) > 0.5 ? 1 : 0; }
           if (P.chute === 'free') { g2.vy = Math.min(42, g2.vy + 9.8 * dt); windSet(Math.min(0.5, g2.vy / 70)); if (rig.position.y < 60) openChute(); }
           else { g2.vy += ((brake ? 2.2 : 4.8) - g2.vy) * Math.min(1, dt * (g2.vy > 8 ? 1.5 : 3)); P.chuteYaw += turnK * 0.75 * dt; windSet(0.08); }
-          const fw = P.chute === 'free' ? 2 : brake ? 3 : 7.5, fx = -Math.sin(P.chuteYaw), fz = -Math.cos(P.chuteYaw);
+          g2.vh = (g2.vh || 0) * Math.exp(-dt * 0.6); const fw = (P.chute === 'free' ? 2 : brake ? 3 : 7.5) + g2.vh, fx = -Math.sin(P.chuteYaw), fz = -Math.cos(P.chuteYaw);
           rig.position.x += fx * fw * dt; rig.position.z += fz * fw * dt; rig.position.y -= g2.vy * dt;
           chuteG.position.set(head.x, head.y - 1.0, head.z); chuteG.rotation.set(-turnK * 0.15 * 0, P.chuteYaw, turnK * 0.25);
           const gh = topAt(head.x, head.z, rig.position.y + 0.5);
           if (rig.position.y <= gh) { rig.position.y = gh; const hard = g2.vy > 6; P.chute = null; applyLight(); chuteG.visible = false; windSet(0); g2.noTargetPlayer = false; S.step(true); for (const h of hands) pulse(h, 1, 200);
-            const dLZ = Math.hypot(head.x - LZ.x, head.z - LZ.z); if (hard) hurtPlayer((g2.vy - 5) * 9, null);
+            const dLZ = Math.hypot(head.x - LZ.x, head.z - LZ.z); if (hard) hurtPlayer((g2.vy - 5) * 9, null); g2.noGravity = false; if (g2.vy < 2.9) { g2.points += 100; popTxt(head.clone().add(V3(0, 0.5, -1)), '🪂 PEHME MAANDUMINE +100', GOLD); }
             if (dLZ < 10) { g2.points += 300; msg('🎯 TÄPNE MAANDUMINE! +300', GOLD, 3); radioSay('Kotkas', 'Täpne maandumine, Hunt! Puhasta kompleks.'); } else { msg(hard ? '💥 Kõva maandumine!' : '🪂 Maandusid!', '#9cff57', 2); radioSay('Kotkas', 'Oled maas, Hunt. Puhasta kompleks.'); } }
         } else { const gh = topAt(head.x, head.z, rig.position.y + 0.5); if (rig.position.y > gh + 0.02) rig.position.y = Math.max(gh, rig.position.y - 7 * dt); }
         return '';
@@ -1535,7 +1554,7 @@ function snipeTick(e, dt, sees, ph, dist){
 // --- missioonide abi ---
 function door(x, z, alongX, col = true){ const g = new THREE.Group(); g.position.set(x, 0, z); missionG.add(g); const pv = new THREE.Group(); pv.position.set(alongX ? -0.55 : 0, 0, alongX ? 0 : -0.55); g.add(pv); const d = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.1 : 0.08, 2.2, alongX ? 0.08 : 1.1), M.wood); d.position.set(alongX ? 0.55 : 0, 1.1, alongX ? 0 : 0.55); d.castShadow = true; pv.add(d); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), M.metal); hd.position.set(alongX ? 0.95 : 0.06, 1.0, alongX ? 0.06 : 0.95); pv.add(hd);
   const c = { x0: x - (alongX ? 0.55 : 0.06), x1: x + (alongX ? 0.55 : 0.06), y0: 0, y1: 2.2, z0: z - (alongX ? 0.06 : 0.55), z1: z + (alongX ? 0.06 : 0.55) }; if (col) COL.push(c); return { g, pv, d, c, open(){ c.y1 = -1; c.y0 = -2; } }; }
-function blastDoor(dr, from){ dr.open(); const p = dr.g.position.clone().add(V3(0, 1.1, 0)); S.boom(p); flash.position.copy(p); flash.intensity = 30; setTimeout(() => flash.intensity = 0, 120); for (let i = 0; i < 40; i++) emit(p, V3(rand(-1, 1), rand(0, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(2, 7)), pick([0xffb74d, 0x8b6a3e, 0x555555]), 0.1, rand(0.4, 0.9), -5); for (let i = 0; i < 20; i++) emit(p, V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x777777, 0.8, 2.5, 0, 0.6);
+function blastDoor(dr, from){ dr.locked = false; if (dr.setAng) dr.setAng(1.7); else dr.open(); const p = dr.g.position.clone().add(V3(0, 1.1, 0)); S.boom(p); flash.position.copy(p); flash.intensity = 30; setTimeout(() => flash.intensity = 0, 120); for (let i = 0; i < 40; i++) emit(p, V3(rand(-1, 1), rand(0, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(2, 7)), pick([0xffb74d, 0x8b6a3e, 0x555555]), 0.1, rand(0.4, 0.9), -5); for (let i = 0; i < 20; i++) emit(p, V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x777777, 0.8, 2.5, 0, 0.6);
   const v = p.clone().sub(from).setY(0).normalize(); dr.flyV = v.multiplyScalar(6).add(V3(0, 2, 0)); dr.fly = true; S.ring(0.4); for (const h of hands) pulse(h, 1, 300);
   for (const e of enemies) if (!e.dead && e.pos.distanceTo(p) < 2.6) damageEnemy(e, 160, e.pos.clone().add(V3(0, 1, 0)), v.clone().normalize(), 'blast'); }
 function updDoors(dt){ if (!game || !game.doors) return; for (const dr of game.doors) { if (dr.fly) { dr.flyV.y -= 9.8 * dt; dr.g.position.addScaledVector(dr.flyV, dt); dr.pv.rotation.x += dt * 4; if (dr.g.position.y < -0.3) { dr.g.position.y = -0.3; dr.fly = false; } } if (dr.swing != null && dr.pv.rotation.y < dr.swing) dr.pv.rotation.y = Math.min(dr.swing, dr.pv.rotation.y + dt * 6); } }
@@ -1548,8 +1567,9 @@ function stealthMission(){
     init: g => { g.prevAtt = save.att.pistol; save.att.pistol = Object.assign({}, save.att.pistol || {}, { supp: true }); applyAtt('pistol'); g.onClear = () => { save.att.pistol = g.prevAtt; applyAtt('pistol'); };
       squad([[CX - 12, CZ + 16, [[CX - 12, CZ + 16], [CX - 20, CZ + 16], [CX - 20, CZ + 4]]], [CX + 2, CZ + 14, [[CX + 2, CZ + 14], [CX + 2, CZ - 2]]], [CX + 10, CZ + 4, [[CX + 10, CZ + 4], [CX + 22, CZ + 4]]], [CX + 6, CZ + 19], [CX - 4, CZ - 6, [[CX - 4, CZ - 6], [CX - 18, CZ - 6]]], [CX + 22, CZ + 20], [CX + 8, CZ - 18, [[CX + 8, CZ - 18], [CX + 20, CZ - 18]]], [CX - 24, CZ - 18]]);
       addSniper(CX + 14, CZ + 9, 6.2);
-      const lp = intel(); lp.position.set(CX + 14, 0, CZ + 12); g.alarm = false; g.thT = rand(6, 12); g.rainOn = true;
-      g.objs = [{ t: 'Hiili laohoonesse ja võta dokumendid 💻', pos: V3(CX + 14, 1.2, CZ + 12), near: 1.5, hold: 3, icon: '💻', onDone: () => { lp.children[lp.children.length - 2].material.color.set(0x222222); radioSay('Kotkas', 'Dokumendid käes. Lahku lõunaväravast, Hunt.'); } },
+      const lp = intel(); lp.position.set(CX + 14, 0, CZ + 12); { const code = String(Math.floor(rand(1000, 9999))); pick(enemies.filter(e => !e.dead && !e.sniper)).code = code; g.kp = makeKeypad(V3(CX + 13.35, 1.12, CZ + 12.2), -Math.PI / 2, code, () => { g.hacked = true; }, () => { for (const e of enemies) if (!e.dead) { e.alert = true; e.state = 'engage'; } }); const oc = g.onClear; g.onClear = () => { oc(); g.kp.cleanup(); }; }
+      g.alarm = false; g.thT = rand(6, 12); g.rainOn = true;
+      g.objs = [{ t: g2 => g2.codeFound ? `💻 Sisesta kood ${g2.codeFound} laohoone arvutisse` : '🤫 Leia kood (ühe valvuri taskus – haara laibast) ja häki laohoone arvuti', pos: () => g.codeFound ? V3(CX + 14, 1.2, CZ + 12) : null, done: g2 => g2.hacked, icon: '💻', onDone: () => { lp.children[lp.children.length - 2].material.color.set(0x222222); radioSay('Kotkas', 'Dokumendid käes. Lahku lõunaväravast, Hunt.'); } },
         { t: g2 => g2.alarm ? 'Põgene lõunaväravasse! 🚩' : 'Hiili lõunaväravasse 🚩', pos: V3(CX, 0, CZ + 37), near: 4, icon: '🚩' }];
       g.extraTick = (g2, dt) => { updRain(g2, dt);
         if (!g2.alarm && enemies.some(e => !e.dead && e.alert)) { g2.alarm = true; S.siren(); msg('🚨 HÄIRE! Sind märgati!', '#ff5252', 3); radioSay('Kotkas', 'Sind märgati, Hunt! Häire! Lisajõud tulevad.'); for (let k = 0; k < 4; k++) { const e = spawnEnemy(EDGE[k][0], EDGE[k][1], { alert: true }); e.lastSeen = V3(CX + 14, 1.6, CZ + 12); } }
@@ -1565,7 +1585,7 @@ function updRain(g, dt){ camera.getWorldPosition(head); for (let i = 0; i < 26; 
 function breachMission(){
   startGame(Object.assign(baseM(), { id: 'm9', mission: { id: 'm9', weapons: ['rifle', 'pistol', 'shotgun', 'smg'] }, name: '🚪 Ukse murdmine', x: CX - 14, z: CZ + 1.5, rot: 0, weapon: 'rifle', par: 150,
     intro: '🚪 Pane laeng uksele! Toas on pantvang – ÄRA TABA TEDA.', say: 'Hunt, pane laeng uksele.',
-    init: g => { const dA = door(CX - 14, CZ - 5.5, true), dA2 = door(CX - 6, CZ - 9, false), dB = door(CX + 7, CZ - 13, false), dB2 = door(CX + 14, CZ - 8, true); g.doors = [dA, dA2, dB, dB2];
+    init: g => { const dA = doorAt(CX - 14, CZ - 5.5), dA2 = doorAt(CX - 6, CZ - 9), dB = doorAt(CX + 7, CZ - 13), dB2 = doorAt(CX + 14, CZ - 8); dA.locked = dA2.locked = dB2.locked = dB.locked = true; dB.kickable = true; g.doors = [];
       const mk = (x, z, yaw) => { const e = spawnEnemy(x, z, { static: true }); e.yaw = yaw; e.nades = 0; return e; };
       g.roomA = [mk(CX - 16, CZ - 12, Math.PI * 0.8), mk(CX - 9, CZ - 13, -Math.PI * 0.8), mk(CX - 12, CZ - 8.5, Math.PI), mk(CX - 8, CZ - 7.5, Math.PI * 1.2)];
       g.roomB = [mk(CX + 10, CZ - 14, -Math.PI / 2), mk(CX + 14, CZ - 10, -Math.PI / 2), mk(CX + 15, CZ - 14.5, -Math.PI / 2)];
@@ -1573,7 +1593,7 @@ function breachMission(){
       g.charge = null; g.cT = -1;
       g.objs = [{ t: 'Pane lõhkelaeng uksele (seisa ukse juures)', pos: V3(CX - 14, 1.2, CZ - 5.5), near: 1.4, hold: 1.5, icon: '🧨', onDone: g2 => { const c = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.06), M.olive); c.position.set(CX - 14, 1.2, CZ - 5.43); missionG.add(c); g2.charge = c; g2.cT = 3.2; radioSay('Kotkas', 'Laeng paigas. Astu eemale!'); } },
         { t: g2 => g2.cT > 0 ? `💥 Plahvatus ${Math.ceil(g2.cT)}… astu eemale!` : `Puhasta tuba! (${g2.roomA.filter(e => e.dead).length}/4) – säästa pantvangi`, pos: V3(CX - 12, 1.5, CZ - 10), done: g2 => g2.cT <= 0 && g2.roomA.every(e => e.dead), icon: '⚔', onDone: () => { radioSay('Kotkas', 'Tuba puhas. Pantvang päästetud! Järgmine maja idas – löö uks jalaga sisse ja viska välkgranaat.'); g.hostage.free = true; } },
-        { t: 'Löö idamaja uks jalaga sisse (mine ukse vastu)', pos: V3(CX + 7, 1.2, CZ - 13), near: 1.2, icon: '🦶', onDone: g2 => { dB.open(); dB.swing = Math.PI / 2; S.boom(V3(CX + 7, 1, CZ - 13)); for (const h2 of hands) pulse(h2, 1, 200); g2.wakeT = 2.2; msg('💥 Uks lahti! Viska 💥 välkgranaat sisse! (parem külg all / arvutis X)', GOLD, 3); } },
+        { t: renderer.xr.isPresenting ? '🦶 Löö idamaja uks sisse – lükka kätega JÕUGA vastu ust' : '🦶 Löö idamaja uks sisse (E ukse juures)', pos: V3(CX + 7, 1.2, CZ - 13), done: () => Math.abs(dB.ang) > 0.45, icon: '🦶', onDone: g2 => { g2.wakeT = 2.2; msg('💥 Uks lahti! Viska 💥 välkgranaat sisse! (parem külg all / arvutis X)', GOLD, 3); } },
         { t: g2 => `Puhasta tuba! (${g2.roomB.filter(e => e.dead).length}/3)`, pos: V3(CX + 12, 1.5, CZ - 12), done: g2 => g2.roomB.every(e => e.dead), icon: '⚔' }];
       g.onFlash = (p, n) => { if (Math.hypot(p.x - (CX + 12), p.z - (CZ - 12)) < 7 && !g.flashed) { g.flashed = true; g.wakeT = -1; slowMo(4); msg('⏱️ AEGLUUP!', GOLD, 2); } };
       g.extraTick = (g2, dt) => {
@@ -1610,6 +1630,138 @@ function micTest(){ audioInit(); if (!SRec) { msg('😕 See brauser ei toeta kõ
     r.onresult = ev => { const t = ev.results[0][0].transcript; msg(`✔ Kuulsin: „${t}"`, '#9cff57', 5); setTimeout(() => radioSay('Kotkas', `Kuulen sind, Hunt. Sa ütlesid: ${t}`), 600); };
     r.onerror = ev => { const m = { 'not-allowed': 'Mikrofon pole lubatud – luba brauseris mikrofon', 'no-speech': 'Ei kuulnud midagi – räägi valjemini', network: 'Kõnetuvastus vajab internetti', 'audio-capture': 'Mikrofoni ei leitud' }[ev.error] || ('Viga: ' + ev.error); msg('❌ ' + m, '#ff8a80', 5); };
     r.start(); } catch (e) { msg('❌ Mikrofoni ei saanud käivitada', '#ff8a80', 3); } }
+/* ===================== EL10: PÄRIS TEGEVUSED – uksed, redelid, relvad maast, laibad, kood, pomm, vedamine, binokkel, lukk, langevari ===================== */
+const handTip = h => h.isHand && J(h, 'index-finger-tip') ? J(h, 'index-finger-tip').getWorldPosition(V3()) : h.ctrl.localToWorld(V3(0, -0.01, -0.03));
+const inter = [];   // { test(h,hp,tip)->dist|null, r, grab(h,hp), hold(h,dt,hp,tip), release(h), desk(), deskD, temp, pos() }
+function interactGrab(h, hp){ const tip = handTip(h); let best = null, bd = 1e9; for (const it of inter) { if (it.off) continue; const d = it.test(h, hp, tip); if (d != null && d < (it.r || 0.2) && d < bd) { bd = d; best = it; } } if (!best) return false; h.inter = best; best.grab(h, hp, tip); return true; }
+function interactRelease(h){ if (!h.inter) return false; const it = h.inter; h.inter = null; if (it.release) it.release(h); return true; }
+function deskInteract(){ camera.getWorldPosition(head); camera.getWorldDirection(tmpD); let best = null, bd = 1e9; for (const it of inter) { if (it.off || !it.desk || !it.pos) continue; const p = it.pos(); if (!p) continue; const to = p.clone().sub(head), d = to.length(); if (d < (it.deskD || 2.2) && (d < 1 || to.normalize().dot(tmpD) > 0.5) && d < bd) { bd = d; best = it; } } if (best) { best.desk(); return true; } return false; }
+function clearTempInter(){ for (let i = inter.length - 1; i >= 0; i--) if (inter[i].temp) inter.splice(i, 1); for (const h of hands) if (h.inter && h.inter.temp) h.inter = null; }
+// --- 🎒 relv selga / vööle, vaba käsi ---
+P.free = false;
+function stowWeapon(){ if (P.free) return; P.free = true; cancelReload(); P.twoHand = false; S.rack(); for (const h of hands) pulse(h, 0.5, 50); msg(P.weapon === 'pistol' ? '🎒 Püstol kabuuris – parem käsi vaba' : '🎒 Relv seljas – parem käsi vaba', GOLD, 1.5); }
+function drawWeapon(k){ P.free = false; if (P.weapon !== k) setWeapon(k); else { P.swapT = 0.4; S.rack(); } pulse(R(), 0.6, 60); }
+function rightGrabV2(h){
+  if (P.chute) { if (chuteGrab(h)) return; }
+  if (mode === 'end' || mode === 'pause' || h.hover || P.mounted || h.held) return; const hp = handPos(h, V3());
+  if (interactGrab(h, hp)) return;
+  const pk = nearPickup(hp, 0.32); if (pk) { takePickup(pk, h); return; }
+  const nearHol = hp.distanceTo(bodyPt('holster')) < 0.2, nearBack = hp.distanceTo(bodyPt('back')) < 0.26, prim = avail(P.prim) ? P.prim : 'rifle';
+  if (!P.free) { if (nearBack && P.weapon !== 'pistol' || nearHol && P.weapon === 'pistol') { stowWeapon(); return; } if (nearHol) { setWeapon('pistol'); pulse(h, 0.6, 60); return; } if (nearBack) { setWeapon(prim); pulse(h, 0.6, 60); return; } return; }
+  if (nearHol) { drawWeapon('pistol'); return; } if (nearBack) { drawWeapon(prim); return; }
+  leftGrab(h);
+}
+function rightRelease(h){ if (interactRelease(h)) return; if (h.held) leftRelease(h); }
+// --- 🚪 uksed (kõik kompleksi majad) ---
+const doorG = new THREE.Group(); scene.add(doorG); const DOORS = [];
+function makeDoor(x, z, alongX, opts = {}){ const g = new THREE.Group(); g.position.set(x, 0, z); doorG.add(g); const pv = new THREE.Group(); pv.position.set(alongX ? -0.55 : 0, 0, alongX ? 0 : -0.55); g.add(pv);
+  const d = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.08 : 0.07, 2.18, alongX ? 0.07 : 1.08), opts.mat || M.wood); d.position.set(alongX ? 0.55 : 0, 1.1, alongX ? 0 : 0.55); d.castShadow = true; pv.add(d);
+  const hd = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.12 : 0.16, 0.03, alongX ? 0.16 : 0.12), M.metal); hd.position.set(alongX ? 0.95 : 0, 1.0, alongX ? 0 : 0.95); pv.add(hd);
+  const c = { x0: x - (alongX ? 0.55 : 0.06), x1: x + (alongX ? 0.55 : 0.06), y0: 0, y1: 2.2, z0: z - (alongX ? 0.06 : 0.55), z1: z + (alongX ? 0.06 : 0.55) }; COL.push(c);
+  const dr = { g, pv, d, hd, c, alongX, x, z, ang: 0, locked: false, kickable: false, home: g.position.clone(),
+    setAng(a){ this.ang = clamp(a, -1.75, 1.75); this.pv.rotation.y = this.ang; const op = Math.abs(this.ang) > 0.45; this.c.y0 = op ? -3 : 0; this.c.y1 = op ? -2 : 2.2; },
+    open(away){ camera.getWorldPosition(head); const s = away != null ? away : (this.alongX ? Math.sign(head.z - this.z) : -Math.sign(head.x - this.x)) || 1; this.target = 1.6 * s; },
+    reset(){ this.g.position.copy(this.home); this.g.visible = true; this.pv.rotation.set(0, 0, 0); this.locked = false; this.kickable = false; this.fly = false; this.target = null; this.setAng(0); this.d.visible = true; } };
+  dr.setAng(0); DOORS.push(dr);
+  inter.push({ r: 0.2, test: (h, hp) => dr.fly ? null : dr.hd.getWorldPosition(V3()).distanceTo(hp), pos: () => dr.g.position.clone().add(V3(0, 1.1, 0)), deskD: 2.2,
+    grab(h, hp){ if (dr.locked) { msg(dr.kickable ? '🔒 Lukus – löö jõuga (lükka kiiresti)' : '🔒 Uks on lukus – kasuta lõhkelaengut', '#ff8a80', 1.5); S.bad(); h.inter = null; return; } dr.target = null; S.click(); pulse(h, 0.4, 40); h.dA0 = dr.ang; const hv = dr.pv.getWorldPosition(V3()); h.dB0 = Math.atan2(hp.x - hv.x, hp.z - hv.z); },
+    hold(h, dt, hp){ const hv = dr.pv.getWorldPosition(V3()), a = Math.atan2(hp.x - hv.x, hp.z - hv.z); let da = a - h.dB0; da = Math.atan2(Math.sin(da), Math.cos(da)); dr.setAng(h.dA0 + da); },
+    release(){}, desk(){ if (dr.locked && !dr.kickable) { msg('🔒 Uks on lukus', '#ff8a80', 1.2); return; } if (Math.abs(dr.ang) > 0.45) dr.target = 0; else { if (dr.kickable) { kickDoor(dr); return; } dr.open(); } S.click(); } });
+  return dr; }
+function kickDoor(dr){ if (dr.locked && !dr.kickable) return; dr.locked = false; dr.open(); dr.kick = true; S.boom(dr.g.position.clone().add(V3(0, 1, 0))); for (const h of hands) pulse(h, 1, 150); emit(dr.g.position.clone().add(V3(0, 1.2, 0)), V3(0, 1, 0), 0x8b6a3e, 0.5, 1, 0, 0.5); if (dr.onKick) dr.onKick(); }
+for (const [x, z, ax] of [[CX - 14, CZ - 5.5, 1], [CX - 6, CZ - 9, 0], [CX + 14, CZ - 8, 1], [CX + 7, CZ - 13, 0], [CX - 13, CZ + 7, 1], [CX - 9.5, CZ + 10, 0], [CX + 12, CZ + 7, 1], [CX + 8, CZ + 14, 0]]) makeDoor(x, z, !!ax);
+const doorAt = (x, z) => DOORS.find(d => Math.hypot(d.x - x, d.z - z) < 0.5);
+function resetDoors(){ for (const d of DOORS) d.reset(); }
+function updDoorsAll(dt){
+  for (const dr of DOORS) { if (dr.fly) { dr.flyV.y -= 9.8 * dt; dr.g.position.addScaledVector(dr.flyV, dt); dr.pv.rotation.x += dt * 4; if (dr.g.position.y < -0.3) { dr.g.position.y = -0.3; dr.fly = false; } continue; } if (dr.target != null) { const d = dr.target - dr.ang; dr.setAng(dr.ang + Math.sign(d) * Math.min(Math.abs(d), dt * (dr.kick ? 9 : 3))); if (Math.abs(d) < 0.01) { dr.target = null; dr.kick = false; } } }
+  // käega jõuga lükkamine = jalahoop
+  for (const h of hands) { if (!h.connected || h.inter || h.vel.length() < 2.3) continue; const hp = handPos(h, V3()); for (const dr of DOORS) { if (Math.abs(dr.ang) > 0.3 || dr.fly || (dr.locked && !dr.kickable)) continue; if (dr.d.getWorldPosition(V3()).distanceTo(hp) < 0.45) kickDoor(dr); } }
+  // vastased avavad uksi
+  for (const e of enemies) { if (e.dead) continue; e.doorT = (e.doorT || rand(0, 0.5)) - dt; if (e.doorT > 0) continue; e.doorT = 0.5; for (const dr of DOORS) if (!dr.locked && Math.abs(dr.ang) < 0.45 && Math.hypot(dr.x - e.pos.x, dr.z - e.pos.z) < 1.4) dr.open(dr.alongX ? Math.sign(e.pos.z - dr.z) || 1 : -Math.sign(e.pos.x - dr.x) || 1); }
+}
+// --- 🪜 redelid ---
+const LADDERS = [];
+function makeLadder(x, z, top, nx, nz){ const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.atan2(nx, nz); world.add(g); const m = std(0x6b6f72, { metalness: 0.6, roughness: 0.4 }); for (const sx of [-0.22, 0.22]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.04, top + 1.0, 0.04), m); r.position.set(sx, (top + 1.0) / 2, 0); g.add(r); } for (let y = 0.3; y < top + 0.9; y += 0.3) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 6).rotateZ(Math.PI / 2), m); r.position.set(0, y, 0); g.add(r); }
+  const L = { x, z, top, nx, nz }; LADDERS.push(L);
+  inter.push({ r: 0.3, test: (h, hp) => { const dx = hp.x - x, dz = hp.z - z, along = dx * nx + dz * nz, lat = Math.abs(dx * nz - dz * nx); if (lat > 0.35 || along < -0.15 || along > 0.4 || hp.y < 0.3 || hp.y > top + 1.0) return null; return Math.max(0, along - 0.05); }, pos: () => { camera.getWorldPosition(head); return rig.position.y > top - 0.5 ? V3(x - nx * 0.6, top + 1, z - nz * 0.6) : V3(x + nx * 0.4, 1.2, z + nz * 0.4); }, deskD: 2.5,
+    grab(h, hp){ h.climb = { anchor: hp.clone(), L }; P.climbing = (P.climbing || 0) + 1; S.clink(hp); pulse(h, 0.5, 40); },
+    hold(h, dt, hp){ const dy = h.climb.anchor.y - hp.y; rig.position.y = clamp(rig.position.y + dy, 0, top + 0.05); const dx = (h.climb.anchor.x - hp.x) * 0.5, dz = (h.climb.anchor.z - hp.z) * 0.5; rig.position.x += dx; rig.position.z += dz; h.climb.anchor.copy(handPos(h, V3())); if (Math.abs(dy) > 0.25 * dt * 60 * 0.01) { } },
+    release(h){ P.climbing = Math.max(0, (P.climbing || 1) - 1); camera.getWorldPosition(head); if (head.y > top + 0.6 && rig.position.y > top - 1.2) { rig.position.y = top; rig.position.x -= nx * 0.8; rig.position.z -= nz * 0.8; S.step(true); msg('🪜 Oled katusel!', GOLD, 1.2); } h.climb = null; },
+    desk(){ camera.getWorldPosition(head); if (rig.position.y > top - 0.5) P.autoClimb = { L, up: false, t: 0 }; else P.autoClimb = { L, up: true, t: 0 }; } });
+}
+makeLadder(CX + 17, CZ + 17.35, 6.2, 0, 1); makeLadder(CX - 16, CZ + 17.35, 3.6, 0, 1); makeLadder(CX - 10, CZ - 14.85, 3.6, 0, -1); makeLadder(CX + 12, CZ - 16.35, 3.6, 0, -1);
+function updClimbGravity(dt){
+  if (P.autoClimb) { const a = P.autoClimb, L = a.L; a.t += dt; camera.getWorldPosition(head); if (a.up) { if (a.t < 0.2) { rig.position.x += (L.x + L.nx * 0.45 - head.x) * 0.5; rig.position.z += (L.z + L.nz * 0.45 - head.z) * 0.5; } rig.position.y = Math.min(L.top, rig.position.y + dt * 2.2); if (rig.position.y >= L.top) { rig.position.x -= L.nx * 0.8; rig.position.z -= L.nz * 0.8; P.autoClimb = null; } } else { if (a.t < 0.3) { rig.position.x += (L.x + L.nx * 0.45 - head.x) * 0.3; rig.position.z += (L.z + L.nz * 0.45 - head.z) * 0.3; } else { rig.position.y = Math.max(0, rig.position.y - dt * 2.5); if (rig.position.y <= 0) P.autoClimb = null; } } if (Math.floor(a.t * 3) !== a.st) { a.st = Math.floor(a.t * 3); S.clink(head); } return; }
+  if (P.climbing || P.chute || P.mounted || P.downed || !(mode === 'play' || mode === 'hub') || (game && game.noGravity)) return; camera.getWorldPosition(head); const gh = topAt(head.x, head.z, rig.position.y + 0.5); if (rig.position.y > gh + 0.02) { const fall = (P.fallV = (P.fallV || 0) + 9.8 * dt); rig.position.y = Math.max(gh, rig.position.y - fall * dt); if (rig.position.y <= gh + 0.02) { if (fall > 7) hurtPlayer((fall - 7) * 6, null); P.fallV = 0; S.step(true); } } else P.fallV = 0;
+}
+// --- 🔫 vastaste relvad maast + 🩻 laipade läbiotsimine ---
+const drops = [];
+function dropEnemyGun(e){ const m = e.m; if (!m.gun || m.dropped2) return; m.dropped2 = true; scene.attach(m.gun); const d = { mesh: m.gun, wpn: e.boss ? 'lmg' : 'rifle', v: V3(rand(-0.6, 0.6), 1, rand(-0.6, 0.6)), floor: e.pos.y, t: 0 }; drops.push(d);
+  d.it = { temp: true, r: 0.32, test: (h, hp) => d.mesh.parent ? d.mesh.getWorldPosition(V3()).distanceTo(hp) : null, pos: () => d.mesh.parent ? d.mesh.getWorldPosition(V3()) : null, deskD: 2.2, grab(h){ takeDrop(d); h.inter = null; }, desk(){ takeDrop(d); } }; inter.push(d.it); }
+function takeDrop(d){ d.mesh.removeFromParent(); const i = inter.indexOf(d.it); if (i >= 0) inter.splice(i, 1); const k = d.wpn; if (mission) { mission.weapons = mission.weapons || []; if (!mission.weapons.includes(k)) mission.weapons.push(k); } else mission = { weapons: [k] }; P.free = false; P.weapon = null; setWeapon(k); const g = guns[k]; g.ammo = g.def.mag; g.hasMag = true; g.mag.visible = true; g.chambered = true; drawAmmo(g); msg(`🔫 Võtsid vastase relva: ${WEAPONS[k].n}`, GOLD, 2); S.rack(); }
+function updDrops2(dt){ for (const d of drops) { if (!d.mesh.parent) continue; d.t += dt; if (d.mesh.position.y > d.floor + 0.06) { d.v.y -= 9.8 * dt; d.mesh.position.addScaledVector(d.v, dt); d.mesh.rotation.z += dt * 4; } else { d.mesh.position.y = d.floor + 0.05; d.mesh.rotation.set(0, d.mesh.rotation.y, Math.PI / 2); } if (d.t > 60) { d.mesh.removeFromParent(); const i = inter.indexOf(d.it); if (i >= 0) inter.splice(i, 1); } } }
+function clearDrops2(){ for (const d of drops) { d.mesh.removeFromParent(); const i = inter.indexOf(d.it); if (i >= 0) inter.splice(i, 1); } drops.length = 0; }
+function addBodySearch(e){ const it = { temp: true, r: 0.5, test: (h, hp) => e.looted ? null : e.pos.clone().add(V3(0, 0.3, 0)).distanceTo(hp), pos: () => e.looted ? null : e.pos.clone().add(V3(0, 0.3, 0)), deskD: 2, grab(h){ loot(e); h.inter = null; pulse(h, 0.5, 60); }, desk(){ loot(e); } }; inter.push(it); e.lootIt = it; }
+function loot(e){ if (e.looted) return; e.looted = true; S.click(); const got = []; const r = Math.random(); if (r < 0.3) { P.frags++; got.push('💣'); } else if (r < 0.55) { P.stims++; got.push('💉'); } else if (r < 0.75) { P.knives++; got.push('🔪'); } else { P.flashes++; got.push('💥'); } addXp(5);
+  if (e.code && game) { game.codeFound = e.code; msg(`📄 LEIDSID KOODI: ${e.code}  ${got.join(' ')}`, GOLD, 5); radioSay('Kotkas', `Kood on ${e.code.split('').join(' ')}. Kasuta seda arvutis.`); } else msg(`🩻 Läbi otsitud: ${got.join(' ')}`, '#9cff57', 1.8); }
+// --- 💻 koodiklaviatuur ---
+function makeKeypad(pos, rotY, code, onOk, onFail){ const kg = new THREE.Group(); kg.position.copy(pos); kg.rotation.y = rotY; missionG.add(kg); const made = []; let entry = '', fails = 0;
+  const disp = new Panel(0.3, 0.08, 500); disp.mesh.position.set(0, 0.2, 0.005); kg.add(disp.mesh); const back = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.03), M.dark); back.position.set(0, 0.02, -0.02); kg.add(back);
+  const show = (col = '#9cff57') => disp.draw((c, W, H) => { c.fillStyle = '#0a140a'; c.fillRect(0, 0, W, H); txt(c, entry.padEnd(4, '_').split('').join(' '), W / 2, H / 2, H * 0.7, col, 'bold'); }); show();
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'OK'].forEach((k, i) => { const b = btn(kg, 0.09, 0.075, -0.1 + (i % 3) * 0.1, 0.11 - Math.floor(i / 3) * 0.085, k, () => { S.beep(k === 'OK' ? 1100 : 900); if (k === 'C') entry = ''; else if (k === 'OK') { if (entry === code) { show('#9cff57'); S.ok(); onOk(); kg.visible = false; } else { fails++; entry = ''; show('#ff5252'); S.bad(); msg(game && game.codeFound ? '❌ Vale kood!' : '❌ Vale kood! Otsi koodi vastaste laipadelt (haara laibast)', '#ff8a80', 3); if (fails % 3 === 0 && onFail) onFail(); return; } } else if (entry.length < 4) entry += k; show(); }); made.push(b); });
+  return { kg, cleanup(){ for (const b of made) { const i = buttons.indexOf(b); if (i >= 0) buttons.splice(i, 1); } } }; }
+// kontrolleri otsaga nupuvajutus (nagu sõrmega)
+let ctrlPoke = new Map();
+function updCtrlPoke(btnMeshes){ for (const h of hands) { if (!h.connected || h.isHand) continue; const tip = handTip(h); let touched = null; for (const m of btnMeshes) { const lp = m.worldToLocal(tip.clone()), b = m.userData.btn; if (Math.abs(lp.x) < b.w / 2 && Math.abs(lp.y) < b.h / 2 && Math.abs(lp.z) < 0.025) touched = b; } if (touched && ctrlPoke.get(h) !== touched) clickBtn(touched, h); ctrlPoke.set(h, touched); } }
+// --- 💣 pomm käega: kruvid ja juhtmed ---
+function physBomb(bombG, COLS, ok, onWin, onLose){
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.025, 0.36), M.gunMetal); lid.position.set(0, 1.07, 0); bombG.add(lid); const screws = [];
+  for (const [x, z] of [[-0.21, -0.15], [0.21, -0.15], [-0.21, 0.15], [0.21, 0.15]]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.02, 8), M.metal); s.position.set(x, 1.09, z); bombG.add(s); const sc = { m: s, turn: 0, done: false }; screws.push(sc);
+    inter.push({ temp: true, r: 0.09, test: (h, hp, tip) => sc.done ? null : s.getWorldPosition(V3()).distanceTo(tip), grab(h){ h.twQ = h.ctrl.getWorldQuaternion(new THREE.Quaternion()); S.click(); },
+      hold(h){ const q = h.ctrl.getWorldQuaternion(new THREE.Quaternion()), dq = q.clone().multiply(h.twQ.clone().invert()); const a = 2 * Math.acos(Math.min(1, Math.abs(dq.w))); h.twQ.copy(q); sc.turn += a; s.position.y = 1.09 + Math.min(0.03, sc.turn * 0.006); s.rotation.y += a * 3; if (Math.floor(sc.turn) !== sc.last) { sc.last = Math.floor(sc.turn); pulse(h, 0.3, 20); S.clink(s.getWorldPosition(V3())); } if (sc.turn > 5 && !sc.done) { sc.done = true; s.visible = false; S.ok(); h.inter = null; if (screws.every(q2 => q2.done)) { lid.rotation.z = 1.2; lid.position.set(0.32, 1.1, 0); msg('✔ Kaas lahti! Haara õigest juhtmest ja tõmba läbi', GOLD, 3); radioSay('Kotkas', `Kaas lahti. Lõika ${COLS[ok][0].toLowerCase()} juhe.`); } else msg(`🔩 Kruvi lahti (${screws.filter(q2 => q2.done).length}/4)`, GOLD, 1.2); } } });
+  }
+  const wires = []; bombG.children.forEach(o => { if (o.geometry && o.geometry.type === 'CylinderGeometry' && o.position.y > 0.95 && o.position.y < 1.0) wires.push(o); });
+  wires.forEach((w, k) => inter.push({ temp: true, r: 0.06, test: (h, hp, tip) => !screws.every(q => q.done) || w.cut ? null : w.getWorldPosition(V3()).distanceTo(tip), grab(h, hp, tip){ h.wire0 = tip.clone(); S.click(); pulse(h, 0.3, 30); }, hold(h, dt, hp, tip){ if (tip.distanceTo(h.wire0) > 0.1 && !w.cut) { w.cut = true; w.scale.set(0.45, 1, 1); h.inter = null; S.clink(tip); if (k === ok) onWin(); else onLose(); } } }));
+  return () => screws.every(q => q.done);
+}
+// --- 🩹 haavatud kaaslase vedamine ---
+function addDragFor(a){ if (a.dragIt) return; a.dragIt = { temp: true, r: 0.5, test: (h, hp) => a.downed && !a.dead ? a.pos.clone().add(V3(0, 0.3, 0)).distanceTo(hp) : null, pos: () => a.downed && !a.dead ? a.pos.clone().add(V3(0, 0.3, 0)) : null, deskD: 2.2,
+  grab(h){ h.drag = a; msg('🩹 Tiri ta varju! Siis süsti', GOLD, 2); allyTalk(a, 'Vii mind varju!', true); }, hold(h, dt, hp){ const d = V3(hp.x - a.pos.x, 0, hp.z - a.pos.z), L = d.length(); if (L > 0.7) a.pos.addScaledVector(d.normalize(), L - 0.7); }, release(h){ h.drag = null; }, desk(){ P.deskDrag = P.deskDrag === a ? null : a; msg(P.deskDrag ? '🩹 Tirid kaaslast – mine varju, siis F' : 'Lasid lahti', GOLD, 1.5); } }; inter.push(a.dragIt); }
+function allyExposed(a){ const c = a.pos.clone().add(V3(0, 0.4, 0)); return enemies.some(e => !e.dead && e.alert && !e.blind && e.pos.distanceTo(c) < 60 && los(e.pos.clone().add(V3(0, 1.5, 0)), c)); }
+// --- 🔭 binokkel ---
+const binoView = new THREE.Group(); binoView.visible = false; camera.add(binoView); { const m = new THREE.MeshBasicMaterial({ map: scopeRT.texture, fog: false, toneMapped: false, depthTest: false }); for (const x of [-0.032, 0.032]) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.036, 32), m); c.position.set(x, 0, -0.12); c.renderOrder = 80; binoView.add(c); } const rim = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.06, 32), new THREE.MeshBasicMaterial({ color: 0x050505, depthTest: false })); rim.position.set(-0.032, 0, -0.1205); rim.renderOrder = 79; binoView.add(rim); const rim2 = rim.clone(); rim2.position.x = 0.032; binoView.add(rim2); const cr = new THREE.Mesh(new THREE.RingGeometry(0.003, 0.0045, 16), new THREE.MeshBasicMaterial({ color: 0xff3030, depthTest: false })); cr.position.set(0, 0, -0.119); cr.renderOrder = 81; binoView.add(cr); }
+const markSpr = Array.from({ length: 10 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(64, 64, c => { c.strokeStyle = '#ffcc00'; c.lineWidth = 6; c.beginPath(); c.moveTo(32, 6); c.lineTo(58, 32); c.lineTo(32, 58); c.lineTo(6, 32); c.closePath(); c.stroke(); }), depthTest: false, fog: false })); sp.scale.set(0.45, 0.45, 1); sp.renderOrder = 70; sp.visible = false; scene.add(sp); return sp; });
+P.bino = false; let binoDesk = false;
+function binoActive(){ if (!renderer.xr.isPresenting) return binoDesk; camera.getWorldPosition(head); for (const h of hands) if (h.held && h.held.type === 'bino' && h.held.g.getWorldPosition(V3()).distanceTo(head) < 0.16) return h; return false; }
+function binoMark(){ camera.getWorldPosition(head); camera.getWorldDirection(tmpD); let best = null, bd = 0.03; for (const e of enemies) { if (e.dead) continue; const to = e.pos.clone().add(V3(0, 1.2, 0)).sub(head), d = to.length(); const ang = 1 - to.normalize().dot(tmpD); if (ang < bd && los(head, e.pos.clone().add(V3(0, 1.2, 0)))) { bd = ang; best = e; } } if (best) { best.marked = 40; S.beep(1500); msg('🎯 Vastane märgitud!', GOLD, 1.2); if (game) game.points += 20; return true; } return false; }
+function binoStrike(){ camera.getWorldPosition(head); camera.getWorldDirection(tmpD); const t = Math.min(castWorld(head, tmpD, 220).t, 220); const p = head.clone().addScaledVector(tmpD, t); p.y = 0; if (!game || mode !== 'play') return; game.cd = game.cd || {}; const left = (game.cd.air || 0) - game.t; if (left > 0) { radioSay('Kotkas', `Õhulöök valmis ${Math.ceil(left)} sekundi pärast.`); return; } if (Math.hypot(p.x - head.x, p.z - head.z) < 15) { msg('⚠️ Liiga lähedal!', '#ff8a80', 1.5); return; } const dir = V3(p.x - head.x, 0, p.z - head.z).normalize(), side = V3(-dir.z, 0, dir.x); flyJet(p.clone().addScaledVector(dir, -250).add(V3(0, 60, 0)), p.clone().addScaledVector(dir, 250).add(V3(0, 60, 0)), [-6, -3, 0, 3, 6].map(k => p.clone().addScaledVector(dir, k).addScaledVector(side, rand(-1.5, 1.5)))); game.cd.air = game.t + CD.air; radioSay('Kotkas', 'Laser lukustatud. Õhulöök tulekul!'); }
+function updBino(dt){ const act = binoActive(); binoView.visible = !!act && renderer.xr.isPresenting;
+  if (act) { camera.getWorldPosition(scopeCam.position); camera.getWorldQuaternion(scopeCam.quaternion); if (scopeCam.fov !== 75 / 7) { scopeCam.fov = 75 / 7; scopeCam.updateProjectionMatrix(); } if (renderer.xr.isPresenting) { const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; binoView.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; binoView.visible = true; }
+    if (act !== true && act.trig) { act.binoT = (act.binoT || 0) + dt; if (act.binoT > 0.05 && !act.binoM) { act.binoM = true; if (!binoMark()) act.binoS = true; } if (act.binoS && act.binoT > 2) { act.binoS = false; binoStrike(); } if (act.binoS && Math.floor(act.binoT * 4) !== act.bq) { act.bq = Math.floor(act.binoT * 4); S.beep(700 + act.binoT * 300); } } else if (act !== true) { act.binoT = 0; act.binoM = false; act.binoS = false; } }
+  let k = 0; for (const e of enemies) { if (e.marked > 0 && !e.dead && k < markSpr.length) { e.marked -= dt; markSpr[k].position.copy(e.pos).add(V3(0, 2.3 * (e.sc || 1), 0)); markSpr[k].visible = true; k++; } } for (; k < markSpr.length; k++) markSpr[k].visible = false; }
+// --- 🔧 lukk (käsitsi laadimine) ---
+function chamberPoint(g){ if (g.kind === 'pistol') return g.g.localToWorld(V3(0, 0.045, 0.025)); if (g.kind === 'shotgun' && g.pump) return g.pump.getWorldPosition(V3()); if (g.kind === 'sniper' && g.bolt) return g.bolt.getWorldPosition(V3()).add(V3(0.04, 0, 0)); return g.charge ? g.charge.getWorldPosition(V3()) : g.g.localToWorld(V3(0, 0.07, 0.07)); }
+inter.push({ r: 0.1, test: (h, hp) => { const g = guns[P.weapon]; if (!g || P.free || g.chambered !== false || !g.g.visible || h === R()) return null; return chamberPoint(g).distanceTo(hp); },
+  grab(h, hp){ h.rack0 = hp.clone(); S.click(); pulse(h, 0.3, 30); },
+  hold(h, dt, hp){ const g = guns[P.weapon]; if (!g) return; const back = V3(0, 0, 1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())), d = hp.clone().sub(h.rack0).dot(back) * (g.kind === 'shotgun' ? -1 : 1); P.rackVis = clamp(d, 0, 0.07); if (d > 0.05 && g.chambered === false) { g.chambered = true; S.rack(); pulse(h, 0.8, 60); pulse(R(), 0.8, 60); msg('✔ Padrun rajas – tulista!', '#9cff57', 1.2); } },
+  release(){ P.rackVis = 0; } });
+// --- tulistamise takistuse põhjus ---
+let whyT = 0; function why(s){ if (performance.now() - whyT < 1500) return; whyT = performance.now(); msg(s, '#ffcc80', 1.6); }
+// --- 🪂 lennuk, avamiskäepide, juhtnöörid, kõrgusmõõtja ---
+const ripM = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.03), std(0xff2a2a, { emissive: 0x440000 })); ripM.visible = false; bodyG.add(ripM); ripM.position.set(0.1, -0.22, -0.19);
+const toggles = [-1, 1].map(s => { const t = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.1, 0.03), std(0xffd23f, { emissive: 0x332200 })); t.position.set(s * 0.32, 1.25, 0.0); chuteG.add(t); return t; });
+const altP = new Panel(0.09, 0.045, 1000); altP.mesh.renderOrder = 60; altP.mesh.visible = false; scene.add(altP.mesh);
+function chuteGrab(h){ const hp = handPos(h, V3()); if (P.chute === 'free') { if (ripM.getWorldPosition(V3()).distanceTo(hp) < 0.14) { h.rip = hp.clone(); h.inter = { release(){ }, hold(h2, dt, hp2){ if (hp2.distanceTo(h2.rip) > 0.14) { h2.inter = null; openChute(); } } }; S.click(); pulse(h, 0.6, 50); return true; } msg('🪂 Haara PUNASEST käepidemest paremal rinnal ja tõmba!', GOLD, 1.5); return true; }
+  if (P.chute === 'open') { const s = h === L() ? 0 : 1; if (toggles[s].getWorldPosition(V3()).distanceTo(hp) < 0.18) { h.tog = { s, y0: hp.y }; h.inter = { release(h2){ h2.tog = null; P.togPull[s] = 0; }, hold(h2, dt, hp2){ P.togPull[s] = clamp((h2.tog.y0 - hp2.y) / 0.4, 0, 1); toggles[s].position.y = 1.25 - P.togPull[s] * 0.4; } }; S.click(); pulse(h, 0.4, 40); return true; } }
+  return false; }
+P.togPull = [0, 0];
+function planeModel(){ const g = new THREE.Group(); const inner = std(0x4a4f45, { side: THREE.DoubleSide, roughness: 0.9 }); const pl = (w, h, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), inner); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); g.add(m); }; pl(13, 2.7, -1.6, 1.35, 0, 0, Math.PI / 2); pl(13, 2.7, 1.6, 1.35, 0, 0, -Math.PI / 2); pl(3.2, 13, 0, 2.7, 0, Math.PI / 2, 0); pl(3.2, 2.7, 0, 1.35, -6.5, 0, 0); const fl = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.05, 13), M.dark); g.add(fl);
+  for (const sx of [-1.35, 1.35]) { const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 9), std(0x6b2e2e)); seat.position.set(sx, 0.3, -1.5); g.add(seat); }
+  const ramp = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.06, 3), M.dark); ramp.position.set(0, -0.6, 7.6); ramp.rotation.x = 0.35; g.add(ramp);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2020 })); lamp.position.set(0, 2.4, 6.3); g.add(lamp); g.userData.lamp = lamp;
+  const out = std(0x5a6150, { roughness: 0.7 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 16, 14, 1, true).rotateX(Math.PI / 2), out); body.position.set(0, 1.35, -1.5); g.add(body); const wing = new THREE.Mesh(new THREE.BoxGeometry(30, 0.3, 3.5), out); wing.position.set(0, 3.3, -2); g.add(wing);
+  for (const x of [-7, -4, 4, 7]) { const e = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2.4, 10).rotateX(Math.PI / 2), M.dark); e.position.set(x, 2.8, -3.2); g.add(e); }
+  scene.add(g); extraMeshes.push(g); return g; }
 /* ===================== HUD ===================== */
 let hudKey = '';
 function drawHud(line){
@@ -1659,7 +1811,8 @@ renderer.setAnimationLoop(() => {
     if (rh && (mode === 'play' || mode === 'hub')) { const w = WEAPONS[P.weapon]; if ((rh.trig || rh.selTrig) && !rh.hover) { if (w.auto || !rh.semiLock) { fire(); rh.semiLock = true; } } else rh.semiLock = false; }
     checkMagInsert(); updTeleport();
     // käe juhised
-    updSwing(dt);
+    updSwing(dt); updCtrlPoke(btnMeshes);
+    for (const h of hands) if (h.inter && h.inter.hold && h.connected) h.inter.hold(h, dt, handPos(h, V3()), handTip(h));
   }
   P.cool -= dt;
   if (game && game.onShot && P.lastAmmo != null && guns[P.weapon] && guns[P.weapon].ammo < P.lastAmmo) game.onShot(); P.lastAmmo = guns[P.weapon] ? guns[P.weapon].ammo : null;
@@ -1671,7 +1824,8 @@ renderer.setAnimationLoop(() => {
     if (P.hp < 40 && !P.downed || P.speed > 4) { P.brT -= dt; if (P.brT <= 0) { P.brT = P.hp < 40 ? 1.7 : 1.4; S.breath(); } }
   } else if (mode === 'hub') { updateEnemies(dt); }
   if (mode === 'play') { updRockets(dtW); updDrops(dtW); updRein(dtW); updRadio(dt); updDoors(dtW); }
-  updKnives(dt); updProps(dtW); updGunDrops(dtW); updTargets(dt); updAtmos(dt); if (mode === 'play') updStreaks(dt); updParticles(dtW); updTracers(dtW);
+  updKnives(dt); updDoorsAll(dtW); updDrops2(dtW); updClimbGravity(dt); updBino(dt); if (P.deskDrag) { const a = P.deskDrag; if (!a.downed || a.dead) P.deskDrag = null; else { camera.getWorldPosition(head); const d = V3(head.x - a.pos.x, 0, head.z - a.pos.z), L2 = d.length(); if (L2 > 1.0) a.pos.addScaledVector(d.normalize(), L2 - 1.0); } }
+  updProps(dtW); updGunDrops(dtW); updTargets(dt); updAtmos(dt); if (mode === 'play') updStreaks(dt); updParticles(dtW); updTracers(dtW);
   if (!P.downed) hurtM.material.opacity = Math.max(0, hurtM.material.opacity - dt * 0.6 * (P.hp > 30 ? 1 : 0.3));
   for (const p of pops) if (p.p.mesh.visible) { p.t -= dt; p.p.mesh.position.y += dt * 0.4; camera.getWorldPosition(head); p.p.mesh.lookAt(head); p.p.mesh.material.opacity = clamp(p.t, 0, 1); if (p.t <= 0) p.p.mesh.visible = false; }
   if (msgP.mesh.visible) { msgT -= dt; msgP.mesh.material.opacity = clamp(msgT * 2, 0, 1); if (msgT <= 0) msgP.mesh.visible = false; }
@@ -1684,7 +1838,7 @@ renderer.setAnimationLoop(() => {
   if (++shF % 3 === 0) renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
 });
-window.__el = { slowMo, addSniper, flashBang, deskStab, deskThrowKnife, micTest, get slowT(){ return slowT; }, renderer, scene, COL, callSupport, toggleRadio, openChute, get rockets(){ return rockets; }, applyAtt, takePickup, pickups, bodyPt, startReload, applyStim, goDown, props, enemyNade, startMission, useStreak, shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
+window.__el = { inter, DOORS, LADDERS, interactGrab, rightGrabV2, stowWeapon, drawWeapon, loot, binoMark, get drops(){ return drops; }, slowMo, addSniper, flashBang, deskStab, deskThrowKnife, micTest, get slowT(){ return slowT; }, renderer, scene, COL, callSupport, toggleRadio, openChute, get rockets(){ return rockets; }, applyAtt, takePickup, pickups, bodyPt, startReload, applyStim, goDown, props, enemyNade, startMission, useStreak, shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
 </script>
 </body>
 </html>
