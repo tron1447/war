@@ -1,4 +1,4 @@
-[index.html](https://github.com/user-attachments/files/33886278/index.html)
+[Uploading index (29).html…]()
 <!doctype html>
 <html lang="et">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el5b';
+window.GAME_VERSION = 'el6';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,7 +21,7 @@ window.GAME_VERSION = 'el5b';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el5b)</span><br>
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el6)</span><br>
   Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = laadi, B = vaheta relva. Võta asjad KEHALT külgnupuga: salv kõhult, granaat/suits paremalt rinnalt, 💉 süstal vasakult rinnalt (vii rinnale = ravi), püstol paremalt puusalt, põhirelv üle parema õla. Kõiguta käsi nagu jooksed = jookse! Y = paus.<br>
   Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1</b> = põhirelv, <b>2</b> = püstol, <b>E</b> = võta ese, <b>F</b> = 💉 süstal, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>Esc</b> = menüü.
 </div>
@@ -52,7 +52,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWid
 renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-try { renderer.xr.setFoveation(0.4); } catch (e) {}
+try { renderer.xr.setFoveation(0.7); } catch (e) {}
 document.body.appendChild(renderer.domElement);
 const vrBtn = VRButton.createButton(renderer); document.body.appendChild(vrBtn); vrBtn.addEventListener('click', () => audioInit());
 const scene = new THREE.Scene();
@@ -276,7 +276,7 @@ const objMark = new Panel(0.5, 0.25, 300); objMark.mesh.renderOrder = 58; scene.
 
 /* ===================== SALVESTUS, AUASTMED ===================== */
 const RANKS = ['Reamees', 'Kapral', 'Nooremseersant', 'Seersant', 'Vanemseersant', 'Veebel', 'Lipnik', 'Leitnant', 'Kapten', 'Major'];
-const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {}, found: {}, att: {}, prim: 'rifle' }, store('el_save') || {});
+const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {}, found: {}, att: {}, prim: 'rifle', gfx: 'ilus' }, store('el_save') || {});
 if (!save.v2) { save.v2 = true; save.reload = 'auto'; }
 const persist = () => store('el_save', save);
 const rankIdx = () => Math.min(RANKS.length - 1, Math.floor(Math.sqrt(save.xp / 150)));
@@ -545,7 +545,7 @@ function animSoldier(e, dt, o){
 /* --- päris 3D-sõdur (luustik + animatsioonid), käed hoiavad relva IK-ga --- */
 let GLB = null;
 { const urls = [window.EMB && window.EMB.glb, './Soldier.glb', 'https://threejs.org/examples/models/gltf/Soldier.glb', 'https://raw.githubusercontent.com/mrdoob/three.js/r160/examples/models/gltf/Soldier.glb'], ld = new GLTFLoader();
-  const tryI = i => { if (i >= urls.length) return; ld.load(urls[i], gl => { gl.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } }); GLB = gl; }, undefined, () => tryI(i + 1)); }; tryI(0); }
+  const tryI = i => { if (i >= urls.length) return; ld.load(urls[i], gl => { gl.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = true; o.geometry.computeBoundingSphere(); o.geometry.boundingSphere.radius *= 1.6; } }); GLB = gl; }, undefined, () => tryI(i + 1)); }; tryI(0); }
 { const tl = new THREE.TextureLoader(), base = ['./', 'https://threejs.org/examples/textures/terrain/'];
   const get = (n, cb, i = -1) => { if (i >= base.length) return; const emb = window.EMB && (n === 'grasslight-big.jpg' ? window.EMB.grass : window.EMB.grassNm); if (i < 0 && !emb) return get(n, cb, 0); tl.load(i < 0 ? emb : base[i] + n, cb, undefined, () => get(n, cb, i + 1)); };
   get('grasslight-big.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70); t.anisotropy = 8; M.dirt.map = t; M.dirt.color.set(0x9a9682); M.dirt.needsUpdate = true; });
@@ -573,28 +573,30 @@ function glbSoldier(g, kind){
   const B = new THREE.Group(); g.add(B); const sc = rand(0.95, 1.07); B.scale.set(sc * rand(0.96, 1.06), sc, sc);
   const root = SkeletonUtils.clone(GLB.scene); root.rotation.y = Math.PI; B.add(root);
   const tint = pick(GTINT[kind] || GTINT.soldier), visor = kind === 'paint' || Math.random() < 0.5;
-  root.traverse(o => { if (o.isMesh) { if (/visor/i.test(o.name)) o.visible = visor; else { o.material = o.material.clone(); o.material.color.setHex(tint); } } });
+  const meshes = []; root.traverse(o => { if (o.isMesh) { meshes.push(o); if (/visor/i.test(o.name)) o.visible = visor; else { o.material = o.material.clone(); o.material.color.setHex(tint); } } });
   const bn = n => root.getObjectByName('mixamorig' + n);
   const mixer = new THREE.AnimationMixer(root), acts = {}; for (const c of GLB.animations) acts[c.name] = mixer.clipAction(c); acts.Idle.play(); mixer.update(rand(0, 3));
   const wpn = kind === 'paint' ? 'paint' : kind === 'ally' ? 'm4' : pick(['m4', 'm4', 'ak', 'm4dot']);
   const aim = new THREE.Group(); aim.position.set(0, 1.36, 0); B.add(aim); const { gun, mz } = enemyGun(aim, wpn); gun.position.set(0.07, -0.08, -0.33);
   if (kind === 'ally') { const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.045), SOLD.flag); const arm = bn('LeftArm'); if (arm) { fl.position.set(0, 12, -6); fl.rotation.y = -Math.PI / 2; arm.add(fl); fl.scale.setScalar(100); } }
   const bones = { sp: bn('Spine1'), sp2: bn('Spine2'), nk: bn('Neck'), hd: bn('Head'), lu: bn('LeftArm'), ll: bn('LeftForeArm'), lh: bn('LeftHand'), ru: bn('RightArm'), rl: bn('RightForeArm'), rh: bn('RightHand') };
-  return { g, mz, gun, legs: [], glb: true, B, root, mixer, acts, cur: 'Idle', aim, bones };
+  return { g, mz, gun, legs: [], glb: true, B, root, mixer, acts, cur: 'Idle', aim, bones, meshes, lodA: 0, lodF: Math.floor(rand(0, 3)) };
 }
 function animGlb(e, dt, o){
   const m = e.m, want = o.dead ? null : o.moving ? (o.run ? 'Run' : 'Walk') : 'Idle';
   if (want && want !== m.cur) { const n = m.acts[want], p = m.acts[m.cur]; n.reset().setEffectiveWeight(1).fadeIn(0.25).play(); if (p) p.fadeOut(0.25); m.cur = want; }
   if (o.dead) { if (!m.deadSet) { m.deadSet = true; for (const k in m.acts) m.acts[k].fadeOut(0.3); } m.mixer.update(dt); m.aim.visible = e.deadT < 0.2; if (!m.dropped) { m.dropped = true; const gw = m.gun.getWorldPosition(V3()); scene.attach(m.gun); m.gunFall = { v: V3(rand(-0.5, 0.5), 0.5, rand(-0.5, 0.5)), y: e.pos.y }; } return; }
   if (m.acts[m.cur]) m.acts[m.cur].timeScale = o.run ? 1 : o.moving ? 1.1 : 1;
-  m.mixer.update(dt);
+  camera.getWorldPosition(head); const dd = head.distanceTo(e.pos), far = dd > 22, sh = dd < 16;
+  if (m.shadow !== sh) { m.shadow = sh; for (const q of m.meshes) q.castShadow = sh; }
+  m.lodA += dt; m.lodF = (m.lodF + 1) % 3; if (far && m.lodF !== 0) return; m.mixer.update(m.lodA); m.lodA = 0;
   const k = Math.min(1, dt * 8); let aimX = o.alert ? clamp(o.pitch || 0, -0.7, 0.7) : -0.55; if (o.run) aimX = -0.4; if (e.reloadT > 0) aimX = -0.25;
   m.aimX = (m.aimX || 0) + (aimX - (m.aimX || 0)) * k; m.aim.rotation.x = m.aimX; m.aim.position.y = 1.36 - (e.ck || 0) * 0.0;
   const b = m.bones; if (!b.ru) return;
   // ülakeha: kükitamine, nõksatus, sihtimise kalle
   if (b.sp) { b.sp.rotation.x += (e.flinch || 0) * -0.6 + (e.ck || 0) * 0.35; }
   if (b.nk) { const hy = o.alert ? 0 : Math.sin(e.t * 0.5 + e.yaw * 3) * 0.5; b.nk.rotation.y += hy; b.nk.rotation.x += o.alert ? -(o.pitch || 0) * 0.4 : 0.1; }
-  m.B.updateMatrixWorld(true);
+  m.B.updateMatrixWorld(true); if (dd > 35) return;
   // käed relval (IK)
   const grip = m.gun.localToWorld(V3(0, -0.06, 0.04)); let fore = m.gun.localToWorld(V3(0, -0.03, -0.2));
   if (e.reloadT > 0) { const u = 1 - e.reloadT / 2.4, s = Math.sin(clamp(u * 1.4, 0, 1) * Math.PI); fore = fore.lerp(m.B.localToWorld(V3(-0.05, 1.1, -0.2)), s); }
@@ -605,7 +607,7 @@ function animGlb(e, dt, o){
 function updGunDrops(dt){ for (const e of enemies) { const m = e.m; if (!m.gunFall) continue; const f = m.gunFall; if (m.gun.position.y > f.y + 0.05) { f.v.y -= 9.8 * dt; m.gun.position.addScaledVector(f.v, dt); m.gun.rotation.z += dt * 3; } else { m.gun.position.y = f.y + 0.04; m.gun.rotation.set(0, m.gun.rotation.y, Math.PI / 2); } if (e.deadT > 11.5) { m.gun.removeFromParent(); m.gunFall = null; } } }
 function makeEnemyMesh(kind){
   const g = new THREE.Group(); scene.add(g); const legs = [];
-  if (kind !== 'robot') return GLB ? glbSoldier(g, kind) : soldierModel(g, kind, legs);
+  if (kind !== 'robot') return GLB && save.gfx !== 'kiire' ? glbSoldier(g, kind) : soldierModel(g, kind, legs);
   const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
   if (kind === 'robot') {
     const met = std(0x8fa3b3, { metalness: 0.7, roughness: 0.35 }), eye = new THREE.MeshBasicMaterial({ color: 0xff3030 });
@@ -995,8 +997,9 @@ function updAtmos(dt){
 const menuG = new THREE.Group(); scene.add(menuG);
 const menuP = new Panel(1.7, 1.3, 450); menuG.add(menuP.mesh);
 function drawMenu(){ menuP.draw((c, W, H) => { bg(c, W, H, OD); txt(c, '🎖️ EESLIIN VR', W / 2, H * 0.07, H * 0.065, GOLD, '900'); const r = rankIdx(), nx = rankXp(r + 1), cur = rankXp(r); txt(c, `🐺 Hunt • ${RANKS[r]} • ${save.xp} XP${r < RANKS.length - 1 ? ` (järgmine: ${RANKS[r + 1]} @ ${nx})` : ''}`, W / 2, H * 0.135, H * 0.032, '#b9c0a8'); c.fillStyle = '#333'; c.fillRect(W * 0.25, H * 0.16, W * 0.5, H * 0.012); c.fillStyle = GOLD; c.fillRect(W * 0.25, H * 0.16, W * 0.5 * clamp((save.xp - cur) / Math.max(1, nx - cur), 0, 1), H * 0.012);
-  txt(c, 'TREENING', W * 0.2, H * 0.22, H * 0.03, GOLD); txt(c, 'LAHING', W * 0.5, H * 0.22, H * 0.03, GOLD); txt(c, 'SEADED', W * 0.8, H * 0.22, H * 0.03, GOLD); txt(c, '🎬 MISSIOONID', W / 2, H * 0.665, H * 0.032, GOLD); txt(c, 'Tapmisseeria: 3 = 📡 droon • 5 = ✈️ õhulöök • 8 = 🚁 kopter (X / Q) • Y/Esc = menüü', W / 2, H * 0.955, H * 0.024, '#8a917a', 'normal'); }); }
+  txt(c, 'TREENING', W * 0.2, H * 0.22, H * 0.03, GOLD); txt(c, 'LAHING', W * 0.5, H * 0.22, H * 0.03, GOLD); txt(c, 'SEADED', W * 0.8, H * 0.22, H * 0.03, GOLD); txt(c, 'Tapmisseeria: 3 = 📡 droon • 5 = ✈️ õhulöök • 8 = 🚁 kopter (X / Q) • Y/Esc = menüü', W / 2, H * 0.955, H * 0.024, '#8a917a', 'normal'); }); }
 const MB = {};
+function applyGfx(vr){ const fast = save.gfx === 'kiire', inVR = vr || renderer.xr.isPresenting, nt = inVR ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap, ch = renderer.shadowMap.enabled !== !fast || renderer.shadowMap.type !== nt; renderer.shadowMap.enabled = !fast; sun.castShadow = !fast; const ms = fast ? 512 : inVR ? 1024 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } renderer.shadowMap.type = nt; renderer.shadowMap.needsUpdate = true; if (ch) scene.traverse(o => { if (o.material) { const ms2 = Array.isArray(o.material) ? o.material : [o.material]; for (const q of ms2) q.needsUpdate = true; } }); try { if (!renderer.xr.isPresenting) renderer.xr.setFramebufferScaleFactor(fast ? 0.75 : 1); } catch (e) {} }
 MB.acc = btn(menuG, 0.46, 0.12, -0.56, 0.27, '🎯 Täpsus', () => rangeDrill('acc')); MB.speed = btn(menuG, 0.46, 0.12, -0.56, 0.13, '⚡ Kiirus', () => rangeDrill('speed')); MB.snip = btn(menuG, 0.46, 0.12, -0.56, -0.01, '🔭 Snaiper', () => rangeDrill('snip')); MB.kh = btn(menuG, 0.46, 0.12, -0.56, -0.15, '🏃 Tapamaja', () => killhouse());
 MB.waves = btn(menuG, 0.46, 0.14, 0, 0.26, '🧟 Lained', () => waves(), '#c0392b'); MB.free = btn(menuG, 0.46, 0.12, 0, 0.1, '🔫 Vaba harjutus', () => { hideMenus(); msg('🔫 Lase märklaudu! Y/Esc = menüü', GOLD, 2.5); }); MB.arm = btn(menuG, 0.46, 0.12, 0, -0.05, '🛠️ Relvad', () => openArmory());
 MISSIONS.forEach((m, i) => { MB['m' + i] = btn(menuG, 0.3, 0.13, -0.64 + i * 0.32, -0.3, m.n, () => startMission(i), '#c9a227'); });
@@ -1004,7 +1007,8 @@ MB.enemy = btn(menuG, 0.46, 0.11, 0.56, 0.27, '', () => { save.enemy = { soldier
 MB.diff = btn(menuG, 0.46, 0.11, 0.56, 0.13, '', () => { save.diff = (save.diff + 1) % 3; persist(); refreshMenu(); });
 MB.reload = btn(menuG, 0.46, 0.11, 0.56, -0.01, '', () => { save.reload = save.reload === 'manual' ? 'auto' : 'manual'; persist(); refreshMenu(); });
 MB.move = btn(menuG, 0.46, 0.11, 0.56, -0.15, '', () => { save.move = save.move === 'smooth' ? 'teleport' : 'smooth'; persist(); refreshMenu(); });
-function refreshMenu(){ MB.enemy.label = { soldier: '🪖 Vastased: Sõdurid', robot: '🤖 Vastased: Robotid', paint: '🎨 Vastased: Värvikuulid' }[save.enemy]; MB.diff.label = 'Raskus: ' + DIFF[save.diff].n; MB.reload.label = save.reload === 'manual' ? '🔄 Laadimine: käsitsi' : '🔄 Laadimine: automaatne'; MB.move.label = save.move === 'smooth' ? '🚶 Liikumine: sujuv' : '✨ Liikumine: teleport';
+MB.gfx = btn(menuG, 0.46, 0.1, 0, -0.18, '', () => { save.gfx = save.gfx === 'kiire' ? 'ilus' : 'kiire'; persist(); applyGfx(); refreshMenu(); msg(save.gfx === 'kiire' ? '⚡ Kiire graafika: lihtsamad vastased, varjud väljas' : '✨ Ilus graafika: 3D-sõdurid ja varjud', GOLD, 2.5); });
+function refreshMenu(){ MB.enemy.label = { soldier: '🪖 Vastased: Sõdurid', robot: '🤖 Vastased: Robotid', paint: '🎨 Vastased: Värvikuulid' }[save.enemy]; MB.diff.label = 'Raskus: ' + DIFF[save.diff].n; MB.reload.label = save.reload === 'manual' ? '🔄 Laadimine: käsitsi' : '🔄 Laadimine: automaatne'; MB.move.label = save.move === 'smooth' ? '🚶 Liikumine: sujuv' : '✨ Liikumine: teleport'; MB.gfx.label = save.gfx === 'kiire' ? '⚡ Graafika: kiire' : '✨ Graafika: ilus'; MB.gfx.sub = save.gfx === 'kiire' ? 'Quest 2 / sujuvam' : '3D-sõdurid, varjud';
   MB.acc.sub = save.best.range_acc ? `rekord ${save.best.range_acc}/100` : 'staatilised märklauad'; MB.speed.sub = save.best.range_speed ? `rekord ${save.best.range_speed}` : 'hüpikmärklauad'; MB.snip.sub = rankIdx() >= 0 ? (save.best.range_snip ? `rekord ${save.best.range_snip}/80` : '100–200 m') : ''; MB.kh.sub = save.best.kh != null ? `rekord ${save.best.kh} s` : 'vastased + tsiviilid'; MB.waves.sub = save.best.waves ? `rekord: laine ${save.best.waves}` : 'kaitse positsiooni';
   MISSIONS.forEach((m, i) => { const st = save.mis[m.id] || 0; MB['m' + i].sub = st ? '⭐'.repeat(st) + '☆'.repeat(3 - st) : m.d; });
   Object.values(MB).forEach(b => b.draw()); drawMenu(); }
@@ -1314,13 +1318,13 @@ function drawHud(line){
 
 /* ===================== SESSIOON JA TSÜKKEL ===================== */
 const info = document.getElementById('info');
-renderer.xr.addEventListener('sessionstart', () => { info.style.display = 'none'; document.getElementById('cross').style.display = 'none'; audioInit(); camera.fov = 75; setTimeout(() => { if (menuG.visible) placeInFront(menuG, 1.35, -0.1); if (endG.visible) placeInFront(endG, 1.3, -0.1); }, 400); hudP.mesh.position.set(0, -0.35, -0.9); const s = renderer.xr.getSession(); s.addEventListener('visibilitychange', () => { if (s.visibilityState !== 'visible' && mode === 'play') pauseGame(); }); });
+renderer.xr.addEventListener('sessionstart', () => { applyGfx(true); info.style.display = 'none'; document.getElementById('cross').style.display = 'none'; audioInit(); camera.fov = 75; setTimeout(() => { if (menuG.visible) placeInFront(menuG, 1.35, -0.1); if (endG.visible) placeInFront(endG, 1.3, -0.1); }, 400); hudP.mesh.position.set(0, -0.35, -0.9); const s = renderer.xr.getSession(); s.addEventListener('visibilitychange', () => { if (s.visibilityState !== 'visible' && mode === 'play') pauseGame(); }); });
 renderer.xr.addEventListener('sessionend', () => { info.style.display = ''; document.getElementById('cross').style.display = ''; camera.position.set(0, 1.65, 0); rig.rotation.y = 0; });
 // taaskäivitamise sidumine
 const RESTART = { m1: () => startMission(0), m2: () => startMission(1), m3: () => startMission(2), m4: () => startMission(3), m5: () => startMission(4), range_acc: () => rangeDrill('acc'), range_speed: () => rangeDrill('speed'), range_snip: () => rangeDrill('snip'), kh: killhouse, waves };
 const _startGame = startGame;
 function bindRestart(){ if (game && !game.restart) game.restart = RESTART[game.id] || toHub; }
-COL_BASE = COL.length; toHub(); P.weapon = null; setWeapon('rifle');
+COL_BASE = COL.length; applyGfx(); toHub(); P.weapon = null; setWeapon('rifle');
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), T = clock.elapsedTime; bindRestart();
