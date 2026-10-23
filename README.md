@@ -1,4 +1,4 @@
-[Uploading index (22).html…]()
+[index (23).html](https://github.com/user-attachments/files/33870577/index.23.html)
 <!doctype html>
 <html lang="et">
 <head>
