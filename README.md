@@ -1,4 +1,4 @@
-[Uploading index (20).html…]()
+[Uploading index (21).html…]()
 <!doctype html>
 <html lang="et">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el1';
+window.GAME_VERSION = 'el2';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,7 +21,7 @@ window.GAME_VERSION = 'el1';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el1)</span><br>
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el2)</span><br>
   Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = salv välja, B = vaheta relva, vasak külgnupp vöö juures = uus salv, rinnal = granaat, Y = paus.<br>
   Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1–4</b> = relv, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>Esc</b> = menüü.
 </div>
@@ -29,6 +29,7 @@ window.GAME_VERSION = 'el1';
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 /* ===================== ABI ===================== */
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -52,8 +53,15 @@ try { renderer.xr.setFoveation(0.4); } catch (e) {}
 document.body.appendChild(renderer.domElement);
 const vrBtn = VRButton.createButton(renderer); document.body.appendChild(vrBtn); vrBtn.addEventListener('click', () => audioInit());
 const scene = new THREE.Scene();
-const DAY = { sky: 0x9fb7c9, fog: 0xb7c3c4, hemi: 1.1, sun: 2.2 }, NIGHT = { sky: 0x05080c, fog: 0x070a0e, hemi: 0.06, sun: 0.0 };
-scene.background = new THREE.Color(DAY.sky); scene.fog = new THREE.Fog(DAY.fog, 40, 190);
+const DAY = { sky: 0x9fb7c9, fog: 0xc8c4b4, hemi: 0.7, sun: 3.4 }, NIGHT = { sky: 0x070b14, fog: 0x0a0f18, hemi: 0.35, sun: 0.0 };
+scene.background = new THREE.Color(DAY.sky); scene.fog = new THREE.Fog(0xc8c4b4, 60, 260);
+renderer.toneMappingExposure = 0.75;
+const SUN_DIR = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(60), THREE.MathUtils.degToRad(215));
+function mkSky(scale){ const s = new Sky(); s.scale.setScalar(scale); const u = s.material.uniforms; u.turbidity.value = 7; u.rayleigh.value = 1.4; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.82; u.sunPosition.value.copy(SUN_DIR); return s; }
+const skyM = mkSky(480); scene.add(skyM);
+let envTex = null; { const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(); es.add(mkSky(100)); envTex = pm.fromScene(es, 0, 0.1, 200).texture; }
+scene.environment = envTex; scene.background = null;
+const stars = (() => { const n = 1500, p = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 0.95), r = 400; p[i * 3] = Math.sin(ph) * Math.cos(th) * r; p[i * 3 + 1] = Math.cos(ph) * r; p[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * r; } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); const o = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: false, fog: false })); o.visible = false; scene.add(o); return o; })();
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.03, 600);
 const rig = new THREE.Group(); rig.add(camera); scene.add(rig); camera.position.set(0, 1.65, 0);
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
@@ -75,20 +83,29 @@ const M = {
   olive: std(0x4f5a34), tan: std(0xa08c62), dark: std(0x2b2e2a), skin: std(0xd2a27a), red: std(0xb32020), blue: std(0x2a5ab3),
   road: std(0xffffff, { map: noiseTex('#4a4a48', 0.1, 4000, [6, 30]) })
 };
+function brickTex(c1, c2){ return canvasTex(256, 256, (c, W, H) => { c.fillStyle = '#6e665c'; c.fillRect(0, 0, W, H); for (let r = 0; r < 16; r++) for (let k = -1; k < 8; k++) { const x = k * 36 + (r % 2) * 18, y = r * 16; const t = rand(); c.fillStyle = t < 0.5 ? c1 : c2; c.globalAlpha = 0.75 + rand(0, 0.25); c.fillRect(x + 1, y + 1, 34, 14); } c.globalAlpha = 1; for (let i = 0; i < 1500; i++) { c.fillStyle = `rgba(0,0,0,${rand(0, 0.15)})`; c.fillRect(rand(0, W), rand(0, H), 2, 2); } c.fillStyle = 'rgba(30,25,20,0.25)'; for (let i = 0; i < 4; i++) c.fillRect(rand(0, W), rand(0, H * 0.3), rand(6, 20), H); }, [1, 1]); }
+M.brick = std(0xffffff, { map: brickTex('#8e5a43', '#7a4a36') }); M.brick2 = std(0xffffff, { map: brickTex('#a89d86', '#958a74') });
+M.plaster = std(0xffffff, { map: noiseTex('#c7bba0', 0.08, 3000, [1, 1], (c, W, H) => { c.fillStyle = 'rgba(90,70,50,0.18)'; for (let i = 0; i < 6; i++) { c.beginPath(); c.arc(rand(0, W), rand(0, H), rand(10, 40), 0, 7); c.fill(); } c.fillStyle = 'rgba(40,30,20,0.25)'; c.fillRect(0, H * 0.85, W, H * 0.15); }) });
+for (const [k, t, b] of [['concrete', 2.5, 0.6], ['wallIn', 2, 0.3], ['wood', 1.2, 0.8], ['sand', 1.6, 1.2], ['brick', 2, 1], ['brick2', 2, 1], ['plaster', 2.5, 0.5]]) { const m = M[k]; m.userData.tile = t; m.map.wrapS = m.map.wrapT = THREE.RepeatWrapping; m.map.repeat.set(1, 1); m.bumpMap = m.map; m.bumpScale = b; m.needsUpdate = true; }
+M.dirt.map.dispose(); M.dirt.map = canvasTex(512, 512, (c, W, H) => { c.fillStyle = '#7d6f52'; c.fillRect(0, 0, W, H); for (let i = 0; i < 260; i++) { c.fillStyle = pick(['rgba(92,110,58,0.35)', 'rgba(70,90,45,0.3)', 'rgba(120,100,70,0.3)', 'rgba(60,50,40,0.25)']); c.beginPath(); c.ellipse(rand(0, W), rand(0, H), rand(8, 50), rand(6, 30), rand(0, 3), 0, 7); c.fill(); } for (let i = 0; i < 9000; i++) { const v = rand(); c.fillStyle = `rgba(${v > 0.5 ? 200 : 30},${v > 0.5 ? 190 : 25},${v > 0.5 ? 160 : 20},${rand(0.05, 0.2)})`; c.fillRect(rand(0, W), rand(0, H), 2, 2); } }, [80, 80]); M.dirt.bumpMap = M.dirt.map; M.dirt.bumpScale = 1.5;
+M.camo = std(0xffffff, { map: canvasTex(128, 128, (c, W, H) => { c.fillStyle = '#6b6a4a'; c.fillRect(0, 0, W, H); for (const col of ['#4a4f32', '#8a7d5a', '#3b3a2a', '#5e6b45']) for (let i = 0; i < 14; i++) { c.fillStyle = col; c.beginPath(); c.ellipse(rand(0, W), rand(0, H), rand(6, 18), rand(4, 12), rand(0, 3), 0, 7); c.fill(); } }, [2, 2]) });
+M.gunMetal = std(0x1c1d1f, { roughness: 0.35, metalness: 0.85 }); M.polymer = std(0x262626, { roughness: 0.75, metalness: 0.1 }); M.fde = std(0x8a7a58, { roughness: 0.7, metalness: 0.1 });
 const cont = c => std(0xffffff, { map: canvasTex(256, 128, (x, W, H) => { x.fillStyle = c; x.fillRect(0, 0, W, H); for (let i = 0; i < W; i += 12) { x.fillStyle = 'rgba(0,0,0,0.18)'; x.fillRect(i, 0, 4, H); } x.fillStyle = 'rgba(255,255,255,0.6)'; x.font = 'bold 22px sans-serif'; x.fillText('EST ' + Math.floor(rand(1000, 9999)), 20, 30); }), roughness: 0.6, metalness: 0.3 });
 
 /* ===================== MAAILM + KOKKUPÕRKED ===================== */
 const COL = [];      // {x0,x1,y0,y1,z0,z1}
 const world = new THREE.Group(); scene.add(world);
+function tileUV(g, w, h, d, t){ const uv = g.attributes.uv, dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]]; for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) { const i = f * 4 + k; uv.setXY(i, uv.getX(i) * dims[f][0] / t, uv.getY(i) * dims[f][1] / t); } }
 function B(x, y, z, w, h, d, mat, collide = true, parent = world){
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y + h / 2, z); m.castShadow = true; m.receiveShadow = true; parent.add(m);
+  const geo = new THREE.BoxGeometry(w, h, d); if (mat.userData.tile) tileUV(geo, w, h, d, mat.userData.tile);
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y + h / 2, z); m.castShadow = true; m.receiveShadow = true; parent.add(m);
   if (mat.map && mat.map.repeat && !mat.userData.keep) { /* tekstuurid korduvad */ }
   if (collide) COL.push({ x0: x - w / 2, x1: x + w / 2, y0: y, y1: y + h, z0: z - d / 2, z1: z + d / 2, m });
   return m;
 }
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), M.dirt); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 // hoone seintega ja ukseavadega
-function building(cx, cz, w, d, h, doors = [], roof = true, mat = M.concrete){
+function building(cx, cz, w, d, h, doors = [], roof = true, mat = pick([M.brick, M.brick2, M.plaster])){
   const t = 0.25, sides = { n: [cz - d / 2, 'x', w], s: [cz + d / 2, 'x', w], w: [cx - w / 2, 'z', d], e: [cx + w / 2, 'z', d] };
   for (const k in sides) {
     const [pos, ax, len] = sides[k], ds = doors.filter(o => o.s === k).sort((a, b) => a.o - b.o); let start = -len / 2;
@@ -118,6 +135,7 @@ truck(10, 22, 0.3); truck(-4, 26, -0.2);
 /* --- 2) TAPAMAJA (killhouse) (40, -20) --- */
 const KH = { x: 40, z: -20 };
 building(40, -20, 16, 20, 3, [{ s: 's', o: -5 }, { s: 'n', o: 5 }], false, M.wood);
+for (const m of [M.concrete]) {}
 B(36, 0, -20, 0.2, 3, 8, M.wood); B(44, 0, -16, 8, 3, 0.2, M.wood); B(37.5, 0, -24, 5, 3, 0.2, M.wood); B(44, 0, -25, 0.2, 3, 6, M.wood);
 B(35, 0, -14, 6, 3, 0.2, M.wood); crate(46, -12); crate(34, -27); crate(41, -21, 0.9, 0.9);
 // lae talad
@@ -137,6 +155,25 @@ for (const [x, z, w, d] of [[CX, CZ - 38, 78, 0.6], [CX, CZ + 38, 78, 0.6], [CX 
 const road = new THREE.Mesh(new THREE.PlaneGeometry(8, 160), M.road); road.rotation.x = -Math.PI / 2; road.position.set(CX, 0.01, CZ); road.receiveShadow = true; scene.add(road);
 // taust: puud
 for (let i = 0; i < 120; i++) { const a = rand(0, Math.PI * 2), r = rand(110, 220), x = Math.cos(a) * r, z = Math.sin(a) * r; const t = new THREE.Mesh(new THREE.ConeGeometry(rand(2, 3.5), rand(7, 12), 7), std(pick([0x2f4a2a, 0x37522c, 0x2a3f26]))); t.position.set(x, 4, z); scene.add(t); }
+/* --- detailid: tünnid, vrakid, postid, aiad, rohi --- */
+const barrelM = [std(0x7a2e1e, { roughness: 0.55, metalness: 0.4 }), std(0x2f4a6b, { roughness: 0.55, metalness: 0.4 }), std(0x4a5530, { roughness: 0.6, metalness: 0.3 })];
+function barrel(x, z){ const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 14), pick(barrelM)); m.position.set(x, 0.45, z); m.castShadow = m.receiveShadow = true; world.add(m); for (const y of [0.2, 0.7]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.305, 0.012, 6, 20).rotateX(Math.PI / 2), M.metal); r.position.set(x, y, z); world.add(r); } COL.push({ x0: x - 0.3, x1: x + 0.3, y0: 0, y1: 0.9, z0: z - 0.3, z1: z + 0.3 }); }
+for (const [x, z] of [[CX - 7, CZ - 14], [CX - 6.3, CZ - 14.5], [CX + 18, CZ - 5], [CX + 18.6, CZ - 5.4], [CX - 21, CZ + 6], [CX + 9, CZ + 24], [CX - 4, CZ - 26], [CX + 31, CZ + 30], [CX - 31, CZ - 30], [12, -5], [-12, -4]]) barrel(x, z);
+const fires = [];
+function wreck(x, z, rot, burning){ const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; world.add(g); const burnt = std(0x2a2522, { roughness: 0.9, metalness: 0.3 }), rust = std(0x5a3220, { roughness: 0.95 }); const add = (w, h, d, px, py, pz, m, rx = 0, rz = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(px, py, pz); b.rotation.set(rx, 0, rz); b.castShadow = b.receiveShadow = true; g.add(b); }; add(1.9, 0.6, 4.2, 0, 0.55, 0, rust, 0, 0.04); add(1.7, 0.6, 2.1, 0, 1.15, 0.2, burnt, 0.05); for (const [wx, wz] of [[-0.9, -1.3], [0.9, 1.3], [-0.9, 1.4]]) add(0.25, 0.5, 0.5, wx, 0.25, wz, burnt); const c = Math.abs(Math.cos(rot)), sn = Math.abs(Math.sin(rot)); COL.push({ x0: x - (c + sn * 2.1), x1: x + (c + sn * 2.1), y0: 0, y1: 1.4, z0: z - (sn + c * 2.1), z1: z + (sn + c * 2.1) }); if (burning) { const l = new THREE.PointLight(0xff7a2a, 3, 10, 2); l.position.set(x, 1.6, z); scene.add(l); fires.push({ p: V3(x, 1.2, z), l }); } }
+wreck(CX - 26, CZ + 26, 0.6, true); wreck(CX + 24, CZ + 33, 1.6, false); wreck(CX + 6, CZ + 33, -0.3, false); wreck(CX - 10, CZ - 33, 1.2, true);
+// elektripostid juhtmetega
+{ const pm = std(0x5a4632); let prev = null; for (let z = 40; z > -120; z -= 18) { const x = CX - 6, p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 8, 8), pm); p.position.set(x, 4, CZ + z); p.castShadow = true; world.add(p); const bar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.1), pm); bar.position.set(x, 7.6, CZ + z); world.add(bar); if (prev) for (const dx of [-0.7, 0.7]) { const pts = []; for (let i = 0; i <= 10; i++) { const k = i / 10; pts.push(V3(x + dx, 7.65 - Math.sin(k * Math.PI) * 0.6, prev + (CZ + z - prev) * k)); } world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x111111 }))); } prev = CZ + z; COL.push({ x0: x - 0.15, x1: x + 0.15, y0: 0, y1: 8, z0: CZ + z - 0.15, z1: CZ + z + 0.15 }); } }
+// võrkaed tiiru ümber
+{ const fence = std(0xffffff, { map: canvasTex(64, 64, (c, W, H) => { c.clearRect(0, 0, W, H); c.strokeStyle = '#9aa0a3'; c.lineWidth = 3; for (let i = -64; i < 128; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + 64, 64); c.stroke(); c.beginPath(); c.moveTo(i + 64, 0); c.lineTo(i, 64); c.stroke(); } }, [1, 1]), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.4 }); fence.map.wrapS = fence.map.wrapT = THREE.RepeatWrapping; for (const [x, z, w, r] of [[-24, 12, 40, 0], [24, 12, 40, 0]]) { const f = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.2), fence); f.material.map.repeat.set(w / 1.5, 2.2 / 1.5); f.position.set(x, 1.1, z); world.add(f); for (let k = 0; k <= w; k += 4) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), M.metal); p.position.set(x - w / 2 + k, 1.15, z); world.add(p); } } }
+// rohututid (instanced)
+{ const gt = canvasTex(64, 64, (c, W, H) => { c.clearRect(0, 0, W, H); for (let i = 0; i < 22; i++) { c.strokeStyle = pick(['#5d7a34', '#6f8a3c', '#4f6a2c', '#8a8a4a']); c.lineWidth = rand(2, 3.5); c.beginPath(); const x = rand(8, 56); c.moveTo(x, H); c.quadraticCurveTo(x + rand(-10, 10), H * 0.5, x + rand(-14, 14), rand(4, 20)); c.stroke(); } });
+  const geo = new THREE.PlaneGeometry(0.7, 0.5).translate(0, 0.25, 0), g2 = geo.clone().rotateY(Math.PI / 2), merged = new THREE.BufferGeometry(); const pa = [...geo.attributes.position.array, ...g2.attributes.position.array], ua = [...geo.attributes.uv.array, ...g2.attributes.uv.array], na = [...geo.attributes.normal.array, ...g2.attributes.normal.array]; merged.setAttribute('position', new THREE.Float32BufferAttribute(pa, 3)); merged.setAttribute('uv', new THREE.Float32BufferAttribute(ua, 2)); merged.setAttribute('normal', new THREE.Float32BufferAttribute(na.map((v, i) => i % 3 === 1 ? 1 : 0), 3)); merged.setIndex([0, 2, 1, 2, 3, 1, 4, 6, 5, 6, 7, 5]);
+  const N = 2600, im = new THREE.InstancedMesh(merged, std(0xffffff, { map: gt, alphaTest: 0.5, side: THREE.DoubleSide }), N); const mt = new THREE.Matrix4(); let n = 0;
+  for (let i = 0; i < N * 3 && n < N; i++) { const x = rand(-120, 60), z = rand(-90, 40); if (blockedAt(x, z, 0.4, 0, 3)) continue; if (Math.abs(x - CX) < 4.5 && Math.abs(z - CZ) < 80) continue; if (Math.abs(x) < 20 && z < 2 && z > -150) continue; const sc = rand(0.6, 1.4); mt.compose(V3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rand(0, 6), 0)), V3(sc, sc * rand(0.7, 1.3), sc)); im.setMatrixAt(n++, mt); }
+  im.count = n; im.receiveShadow = true; scene.add(im); }
+// kaugel suitsusambad ja tuli
+const SMOKE_COL = [V3(-180, 0, -160), V3(140, 0, -220), V3(-60, 0, -240)];
 // varjupunktid automaatselt madalate takistuste juures
 const COVER = [];
 for (const c of COL) { const h = c.y1 - c.y0; if (h < 0.8 || h > 2.8 || c.y0 > 0.1) continue; const cx = (c.x0 + c.x1) / 2, cz = (c.z0 + c.z1) / 2; for (const [nx, nz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const px = nx ? (nx > 0 ? c.x1 + 0.6 : c.x0 - 0.6) : cx, pz = nz ? (nz > 0 ? c.z1 + 0.6 : c.z0 - 0.6) : cz; if (!blockedAt(px, pz, 0.35)) COVER.push({ x: px, z: pz, nx: -nx, nz: -nz, low: h < 1.5 }); } }
@@ -183,7 +220,7 @@ function say(txt){ try { if (!window.speechSynthesis) return; const u = new Spee
 const PN = 900, pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3), pSize = new Float32Array(PN), pAlpha = new Float32Array(PN), pVel = Array.from({ length: PN }, () => V3()), pLife = new Float32Array(PN), pMax = new Float32Array(PN), pGrav = new Float32Array(PN), pGrow = new Float32Array(PN); let pI = 0;
 const pGeo = new THREE.BufferGeometry(); for (const [n, a, s] of [['position', pPos, 3], ['pcolor', pCol, 3], ['psize', pSize, 1], ['palpha', pAlpha, 1]]) pGeo.setAttribute(n, new THREE.BufferAttribute(a, s));
 const pMat = new THREE.ShaderMaterial({ uniforms: { uScale: { value: 600 } }, transparent: true, depthWrite: false,
-  vertexShader: `attribute vec3 pcolor; attribute float psize; attribute float palpha; uniform float uScale; varying vec3 vC; varying float vA; void main(){ vC = pcolor; vA = palpha; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = psize * uScale / max(0.05, -mv.z); gl_Position = projectionMatrix * mv; }`,
+  vertexShader: `attribute vec3 pcolor; attribute float psize; attribute float palpha; uniform float uScale; varying vec3 vC; varying float vA; void main(){ vC = pcolor; vA = palpha * (psize > 0.5 ? 0.42 : 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = psize * uScale / max(0.05, -mv.z); gl_Position = projectionMatrix * mv; }`,
   fragmentShader: `varying vec3 vC; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.1, d); gl_FragColor = vec4(vC, a * vA); }` });
 const pts = new THREE.Points(pGeo, pMat); pts.frustumCulled = false; pts.renderOrder = 5; scene.add(pts);
 const tc = new THREE.Color();
@@ -229,7 +266,8 @@ const objMark = new Panel(0.5, 0.25, 300); objMark.mesh.renderOrder = 58; scene.
 
 /* ===================== SALVESTUS, AUASTMED ===================== */
 const RANKS = ['Reamees', 'Kapral', 'Nooremseersant', 'Seersant', 'Vanemseersant', 'Veebel', 'Lipnik', 'Leitnant', 'Kapten', 'Major'];
-const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'manual', move: 'smooth', best: {}, mis: {} }, store('el_save') || {});
+const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {} }, store('el_save') || {});
+if (!save.v2) { save.v2 = true; save.reload = 'auto'; }
 const persist = () => store('el_save', save);
 const rankIdx = () => Math.min(RANKS.length - 1, Math.floor(Math.sqrt(save.xp / 150)));
 const rankXp = i => i * i * 150;
@@ -248,15 +286,33 @@ function buildGun(kind){
   const g = new THREE.Group(), add = (w, h, d, x, y, z, m = M.gun) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
   const cyl = (r, l, x, y, z, m = M.gun) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 10).rotateX(Math.PI / 2), m); c.position.set(x, y, z); g.add(c); return c; };
   let muzzle, magwell, fore, sightY = 0.07;
-  if (kind === 'pistol') { add(0.03, 0.1, 0.035, 0, -0.03, 0.01); add(0.032, 0.035, 0.19, 0, 0.035, -0.07); add(0.008, 0.01, 0.01, 0, 0.057, -0.15); add(0.012, 0.01, 0.006, 0, 0.057, 0.0); muzzle = V3(0, 0.035, -0.17); magwell = V3(0, -0.09, 0.01); fore = null; sightY = 0.062; }
-  else {
-    const L = kind === 'sniper' ? 0.85 : kind === 'shotgun' ? 0.7 : 0.6, tan = kind === 'rifle' ? M.gunTan : M.gun;
-    add(0.035, 0.12, 0.04, 0, -0.04, 0.02); add(0.05, 0.075, 0.42, 0, 0.03, -0.12, tan); add(0.045, 0.1, 0.22, 0, 0.0, 0.2, tan);
-    cyl(kind === 'shotgun' ? 0.014 : 0.01, L * 0.6, 0, 0.04, -0.33 - L * 0.15); add(0.05, 0.05, 0.22, 0, 0.0, -0.36, tan);
-    if (kind !== 'shotgun') add(0.03, 0.14, 0.06, 0, -0.08, -0.1, M.gun).rotation.x = 0.15;
-    if (kind === 'sniper') { cyl(0.025, 0.28, 0, 0.115, -0.12, M.dark); cyl(0.031, 0.04, 0, 0.115, -0.27, M.dark); cyl(0.031, 0.04, 0, 0.115, 0.03, M.dark); add(0.015, 0.05, 0.02, 0, 0.08, -0.12); }
-    else { add(0.006, 0.02, 0.006, 0, 0.075, -0.4); add(0.02, 0.018, 0.01, 0, 0.075, 0.05); }
-    muzzle = V3(0, 0.04, -0.33 - L * 0.45); magwell = V3(0, -0.14, -0.1); fore = V3(0, -0.01, -0.36); sightY = kind === 'sniper' ? 0.115 : 0.08;
+  if (kind === 'pistol') {
+    add(0.028, 0.1, 0.034, 0, -0.035, 0.012, M.polymer).rotation.x = 0.18; add(0.03, 0.03, 0.17, 0, 0.012, -0.06, M.polymer);
+    add(0.032, 0.032, 0.19, 0, 0.042, -0.065, M.gunMetal); for (let i = 0; i < 6; i++) add(0.033, 0.026, 0.003, 0, 0.044, 0.01 + i * 0.006, M.polymer);
+    add(0.004, 0.012, 0.022, 0, -0.012, -0.03, M.gunMetal); add(0.006, 0.01, 0.008, 0, 0.063, -0.15, M.gunMetal); add(0.016, 0.009, 0.006, 0, 0.063, 0.02, M.gunMetal);
+    cyl(0.006, 0.01, 0, 0.042, -0.162, M.dark); muzzle = V3(0, 0.042, -0.17); magwell = V3(0, -0.095, 0.02); fore = null; sightY = 0.068;
+  } else {
+    const L = kind === 'sniper' ? 0.9 : kind === 'shotgun' ? 0.75 : 0.62, furn = kind === 'rifle' ? M.fde : kind === 'sniper' ? M.camo : M.polymer;
+    // lukukast ja käepide
+    add(0.052, 0.06, 0.34, 0, 0.035, -0.08, M.gunMetal); add(0.05, 0.03, 0.16, 0, -0.008, 0.0, M.gunMetal);
+    add(0.034, 0.12, 0.045, 0, -0.06, 0.06, furn).rotation.x = 0.28; add(0.012, 0.04, 0.05, 0, -0.03, -0.02, M.gunMetal);
+    // päästikukaitse
+    add(0.008, 0.006, 0.05, 0, -0.045, -0.015, M.gunMetal);
+    // pära
+    add(0.04, 0.05, 0.2, 0, 0.02, 0.2, furn); add(0.045, 0.11, 0.025, 0, -0.005, 0.31, M.polymer); add(0.02, 0.02, 0.12, 0, 0.045, 0.14, M.gunMetal);
+    // eesmine käekaitse siinidega
+    add(0.055, 0.055, 0.26, 0, 0.03, -0.37, furn); for (let i = 0; i < 9; i++) add(0.04, 0.008, 0.012, 0, 0.061, -0.27 - i * 0.025, M.gunMetal); for (const x of [-0.029, 0.029]) for (let i = 0; i < 4; i++) add(0.004, 0.012, 0.03, x, 0.03, -0.29 - i * 0.05, M.polymer);
+    add(0.05, 0.008, 0.33, 0, 0.068, -0.15, M.gunMetal); for (let i = 0; i < 11; i++) add(0.054, 0.006, 0.01, 0, 0.074, 0.0 - i * 0.03, M.gunMetal);
+    // toru, leegisummuti
+    cyl(kind === 'shotgun' ? 0.014 : 0.0095, L * 0.55, 0, 0.04, -0.5 - L * 0.12, M.gunMetal); cyl(0.016, 0.06, 0, 0.04, -0.5 - L * 0.4, M.dark);
+    if (kind === 'shotgun') { cyl(0.012, 0.3, 0, 0.012, -0.45, M.gunMetal); add(0.05, 0.05, 0.15, 0, 0.012, -0.42, furn); }
+    // salv (kumer)
+    if (kind !== 'shotgun') { for (let i = 0; i < 4; i++) { const sg = add(0.026, 0.045, 0.06, 0, -0.04 - i * 0.04, -0.1 - i * 0.008 * i, M.dark); sg.rotation.x = -0.1 - i * 0.1; } }
+    // sihikud
+    if (kind === 'sniper') { cyl(0.025, 0.3, 0, 0.115, -0.12, M.gunMetal); cyl(0.031, 0.05, 0, 0.115, -0.28, M.gunMetal); cyl(0.031, 0.05, 0, 0.115, 0.04, M.gunMetal); add(0.016, 0.04, 0.02, 0, 0.085, -0.18, M.gunMetal); add(0.016, 0.04, 0.02, 0, 0.085, -0.04, M.gunMetal); cyl(0.008, 0.035, 0.035, 0.115, -0.12, M.gunMetal).rotation.set(0, 0, Math.PI / 2); for (const sx of [-1, 1]) { const bp = add(0.01, 0.16, 0.01, sx * 0.02, -0.04, -0.6, M.gunMetal); bp.rotation.set(0.5, 0, sx * 0.3); } }
+    else if (kind === 'rifle') { add(0.036, 0.034, 0.06, 0, 0.098, -0.05, M.gunMetal); add(0.032, 0.03, 0.004, 0, 0.1, -0.08, M.glassScope || (M.glassScope = std(0x335566, { transparent: true, opacity: 0.35, metalness: 0.9, roughness: 0.05 }))); const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 8), new THREE.MeshBasicMaterial({ color: 0xff2020, fog: false })); dot.position.set(0, 0.1, -0.078); g.add(dot); }
+    else { add(0.006, 0.02, 0.006, 0, 0.085, -0.6); add(0.02, 0.018, 0.01, 0, 0.085, 0.05); }
+    muzzle = V3(0, 0.04, -0.5 - L * 0.45); magwell = V3(0, -0.12, -0.1); fore = V3(0, 0.0, -0.37); sightY = kind === 'sniper' ? 0.115 : kind === 'rifle' ? 0.1 : 0.085;
   }
   const mz = new THREE.Object3D(); mz.position.copy(muzzle); g.add(mz);
   // salv relvas
@@ -269,6 +325,8 @@ function buildGun(kind){
   return { g, mz, magwell, fore, mag, ammoP, lens, flashM, sightY };
 }
 const scopeRT = new THREE.WebGLRenderTarget(384, 384);
+const laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff1a1a, fog: false })); laserDot.visible = false; scene.add(laserDot);
+const laserBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 1, 4).translate(0, 0.5, 0).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35, fog: false })); laserBeam.visible = false; scene.add(laserBeam);
 const scopeCam = new THREE.PerspectiveCamera(75 / 6, 1, 0.1, 600);
 const guns = {}; for (const k of WORDER) { const g = buildGun(k); g.g.visible = false; scene.add(g.g); guns[k] = Object.assign(g, { kind: k, def: WEAPONS[k], ammo: WEAPONS[k].mag, hasMag: true, chambered: true }); }
 // granaadid, salved (esemed)
@@ -295,7 +353,8 @@ const hands = [0, 1].map(i => {
   const h = { i, kind: 'xr', ctrl, grip, hand, hm, glove, holder, hHold, ray, side: null, isHand: false, connected: false, held: null, vel: V3(), prev: V3(), hasPrev: false, hover: null, gp: null, poke: null, trig: false, grip_: false, btns: {}, gClosed: false, pinch: false };
   ctrl.addEventListener('connected', e => { h.connected = true; h.side = e.data.handedness; h.isHand = !!e.data.hand; h.gp = e.data.gamepad; glove.visible = !h.isHand; if (h.isHand) save.reload = 'auto'; });
   ctrl.addEventListener('disconnected', () => { h.connected = false; });
-  ctrl.addEventListener('selectstart', () => { audioInit(); if (h.hover) clickBtn(h.hover, h); });
+  ctrl.addEventListener('selectstart', () => { audioInit(); if (h.hover) clickBtn(h.hover, h); else h.selTrig = true; });
+  ctrl.addEventListener('selectend', () => { h.selTrig = false; });
   return h;
 });
 const R = () => hands.find(h => h.connected && h.side === 'right') || hands.find(h => h.connected);
@@ -307,7 +366,7 @@ function clickBtn(b, h){ if (!isShown(b.p.mesh) || b.lock) { if (b.lock) S.bad()
 const keys = {}; let yaw = 0, pitch = 0, mouseDown = false, rmb = false;
 addEventListener('keydown', e => { keys[e.code] = true; audioInit();
   if (e.code === 'Escape') { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); }
-  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code >= 'Digit1' && e.code <= 'Digit4') setWeapon(WORDER[+e.code.slice(5) - 1]); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyE') interact(); }
+  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code >= 'Digit1' && e.code <= 'Digit4') setWeapon(WORDER[+e.code.slice(5) - 1]); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyQ') useStreak(); if (e.code === 'KeyE') interact(); }
 });
 addEventListener('keyup', e => keys[e.code] = false);
 const mouseNDC = new THREE.Vector2();
@@ -316,7 +375,7 @@ addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseNDC.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); if (document.pointerLockElement === renderer.domElement) { const s = P.ads ? 0.0008 : 0.0022; yaw -= e.movementX * s; pitch = clamp(pitch - e.movementY * s, -1.4, 1.4); } });
 let deskHover = null;
-const menuOpen = () => menuG.visible || endG.visible || pauseG.visible || armG.visible;
+const menuOpen = () => menuG.visible || endG.visible || pauseG.visible || armG.visible || (typeof wireG !== 'undefined' && wireG.visible) || buyMenu.visible;
 
 function setWeapon(k){ if (!k || P.weapon === k || WEAPONS[k].rank > rankIdx() && !(mission && mission.weapons && mission.weapons.includes(k))) { if (k && WEAPONS[k].rank > rankIdx()) msg(`🔒 ${WEAPONS[k].n} avaneb auastmel ${RANKS[WEAPONS[k].rank]}`, '#ff8a80', 2); return; } P.weapon = k; P.reloadT = 0; S.rack(); for (const w of WORDER) guns[w].g.visible = false; guns[k].g.visible = true; drawAmmo(guns[k]); }
 function cycleWeapon(){ const av = WORDER.filter(w => WEAPONS[w].rank <= rankIdx() || mission && mission.weapons && mission.weapons.includes(w)); setWeapon(av[(av.indexOf(P.weapon) + 1) % av.length]); }
@@ -324,7 +383,7 @@ function drawAmmo(g){ g.ammoP.draw((c, W, H) => { c.fillStyle = 'rgba(0,0,0,0.6)
 function startReload(){ const g = guns[P.weapon]; if (P.reloadT > 0 || g.ammo === g.def.mag && g.hasMag) return; P.reloadT = g.kind === 'shotgun' ? 2.2 : 1.6; S.mag(); }
 function ejectMag(){ const g = guns[P.weapon]; if (!g.hasMag) return; g.hasMag = false; g.mag.visible = false; const p = newProp('mag', g.g.localToWorld(g.magwell.clone())); p.live = true; p.vel.set(0, -1, 0); p.empty = true; g.ammo = 0; drawAmmo(g); S.mag(); }
 function insertMag(){ const g = guns[P.weapon]; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); setTimeout(() => S.rack(), 200); }
-function toggleNvg(){ if (!mission || !mission.night) { msg('🌙 Öövaatlus töötab öises missioonis', '#b9c0a8', 1.5); return; } P.nvg = !P.nvg; nvgM.visible = P.nvg; S.beep(P.nvg ? 1200 : 600); applyLight(); }
+function toggleNvg(){ if (!mission || !mission.night) return; P.nvg = !P.nvg; P.nvgSeen = false; nvgM.visible = P.nvg; S.beep(P.nvg ? 1200 : 600); applyLight(); }
 
 /* ===================== TULISTAMINE ===================== */
 const shootables = [];  // { test(o,d,maxT)->{t,part}, hit(point,part,dmg,dir) }
@@ -370,15 +429,22 @@ function makeEnemyMesh(kind){
     add(new THREE.BoxGeometry(0.42, 0.55, 0.3), met, 0, 1.15, 0); add(new THREE.BoxGeometry(0.3, 0.26, 0.28), met, 0, 1.6, 0); add(new THREE.BoxGeometry(0.22, 0.05, 0.02), eye, 0, 1.62, -0.145);
     for (const x of [-0.12, 0.12]) add(new THREE.BoxGeometry(0.14, 0.85, 0.16), M.dark, x, 0.43, 0); for (const x of [-0.29, 0.29]) add(new THREE.BoxGeometry(0.11, 0.5, 0.12), met, x, 1.12, -0.05);
   } else {
-    const uni = kind === 'paint' ? std(pick([0xd84315, 0x6a1b9a, 0x1565c0])) : std(pick([0x5c6a3e, 0x6b6247, 0x4d5a3a])), vest = std(kind === 'paint' ? 0x222222 : 0x3b4030);
-    add(new THREE.CapsuleGeometry(0.2, 0.42, 6, 12), uni, 0, 1.13, 0); add(new THREE.BoxGeometry(0.42, 0.42, 0.3), vest, 0, 1.18, 0);
-    add(new THREE.SphereGeometry(0.12, 14, 10), M.skin, 0, 1.6, 0); const helm = add(new THREE.SphereGeometry(0.135, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), kind === 'paint' ? std(0x111111) : M.olive, 0, 1.62, 0);
+    const uni = kind === 'paint' ? std(pick([0xd84315, 0x6a1b9a, 0x1565c0])) : kind === 'ally' ? std(0x3d5a80) : M.camo, vest = std(kind === 'paint' ? 0x222222 : kind === 'ally' ? 0x2b3a50 : 0x3b4030, { roughness: 0.9 }), dark = std(0x1d1d1b), skinC = std(pick([0xd2a27a, 0xb9855e, 0x8d5c3e]));
+    add(new THREE.CapsuleGeometry(0.18, 0.4, 6, 12), uni, 0, 1.12, 0).scale.set(1.1, 1, 0.8);
+    add(new THREE.BoxGeometry(0.42, 0.44, 0.3), vest, 0, 1.18, 0); for (const x of [-0.12, 0, 0.12]) add(new THREE.BoxGeometry(0.09, 0.12, 0.06), vest, x, 1.08, -0.17);
+    add(new THREE.BoxGeometry(0.3, 0.35, 0.12), vest, 0, 1.2, 0.2);
+    add(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 10), skinC, 0, 1.47, 0);
+    const hd = add(new THREE.SphereGeometry(0.115, 16, 12), kind === 'ally' ? skinC : std(0x22231f), 0, 1.6, 0); hd.scale.set(1, 1.1, 1.05);
+    if (kind !== 'ally' && kind !== 'paint') { add(new THREE.BoxGeometry(0.16, 0.035, 0.02), skinC, 0, 1.62, -0.105); }
+    add(new THREE.SphereGeometry(0.135, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), kind === 'paint' ? std(0x111111) : kind === 'ally' ? std(0x3a4a2a) : std(0x4d5236, { roughness: 0.8 }), 0, 1.63, 0).scale.set(1, 0.9, 1.08);
     if (kind === 'paint') add(new THREE.BoxGeometry(0.2, 0.08, 0.04), std(0x222222, { metalness: 0.5, roughness: 0.2 }), 0, 1.6, -0.12);
-    for (const x of [-0.11, 0.11]) add(new THREE.CapsuleGeometry(0.08, 0.6, 4, 8), uni, x, 0.45, 0);
-    for (const x of [-0.27, 0.27]) add(new THREE.CapsuleGeometry(0.06, 0.4, 4, 8), uni, x, 1.15, -0.1).rotation.x = -0.9;
+    else add(new THREE.BoxGeometry(0.17, 0.045, 0.03), std(0x111111, { metalness: 0.8, roughness: 0.2 }), 0, 1.71, -0.11);
+    for (const x of [-0.11, 0.11]) { add(new THREE.CapsuleGeometry(0.075, 0.32, 4, 8), uni, x, 0.62, 0); add(new THREE.CapsuleGeometry(0.065, 0.3, 4, 8), uni, x, 0.27, 0.02); add(new THREE.BoxGeometry(0.1, 0.1, 0.08), dark, x, 0.45, -0.07); add(new THREE.BoxGeometry(0.11, 0.09, 0.22), dark, x, 0.05, -0.04); }
+    add(new THREE.CapsuleGeometry(0.055, 0.22, 4, 8), uni, -0.24, 1.22, -0.12).rotation.set(-1.1, 0, -0.3); add(new THREE.CapsuleGeometry(0.05, 0.22, 4, 8), uni, -0.12, 1.2, -0.32).rotation.set(-1.45, 0, 0.6);
+    add(new THREE.CapsuleGeometry(0.055, 0.22, 4, 8), uni, 0.24, 1.18, -0.06).rotation.set(-0.7, 0, 0.3); add(new THREE.CapsuleGeometry(0.05, 0.2, 4, 8), uni, 0.12, 1.2, -0.2).rotation.set(-1.3, 0, -0.5);
   }
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.6), kind === 'paint' ? std(0x33cc33) : M.gun); gun.position.set(0.05, 1.25, -0.35); g.add(gun);
-  const mz = new THREE.Object3D(); mz.position.set(0.05, 1.27, -0.67); g.add(mz);
+  const gun = new THREE.Group(); gun.position.set(0.05, 1.25, -0.35); g.add(gun); { const gm = kind === 'paint' ? std(0x33cc33) : M.gunMetal; const a = (w, h, d, x, y, z, m = gm) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; gun.add(b); }; a(0.045, 0.06, 0.4, 0, 0, 0); a(0.04, 0.05, 0.2, 0, -0.01, 0.27, kind === 'paint' ? gm : M.fde); a(0.025, 0.1, 0.05, 0, -0.07, 0.03, M.dark); a(0.012, 0.012, 0.25, 0, 0.01, -0.3); }
+  const mz = new THREE.Object3D(); mz.position.set(0.05, 1.26, -0.8); g.add(mz);
   return { g, mz };
 }
 function spawnEnemy(x, z, opts = {}){
@@ -403,6 +469,7 @@ function killEnemy(e, dir, part){
   popTxt(e.pos.clone().add(V3(0, 2, 0)), part === 'head' ? '🎯 PEAS +150' : '+100', part === 'head' ? GOLD : '#e8eadf');
   if (save.enemy === 'robot') { for (let i = 0; i < 25; i++) emit(e.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-2, 2), rand(0, 3), rand(-2, 2)), pick([0xffd27a, 0x6ff7ff]), 0.04, 0.7, -6); }
   if (game && game.onKill) game.onKill(e);
+  if (game) streakKill();
 }
 function alertEnemies(p, r){ for (const e of enemies) if (!e.dead && !e.alert && e.pos.distanceTo(p) < r) { e.alert = true; e.state = 'engage'; e.cool = DIFF[save.diff].react + rand(0, 0.5); } }
 function moveEnemy(e, gx, gz, sp, dt){
@@ -419,7 +486,8 @@ function updateEnemies(dt){
     if (e.dead) { e.deadT += dt; const k = Math.min(1, e.deadT * 2.5); g.rotation.set(0, e.yaw, 0); g.rotateOnWorldAxis(V3(Math.cos(e.fallDir), 0, -Math.sin(e.fallDir)), -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.15, e.pos.z); if (e.deadT > 12) { g.removeFromParent(); enemies.splice(i, 1); } continue; }
     const eye = V3(e.pos.x, e.pos.y + 1.55 - (e.crouchK || 0) * 0.5, e.pos.z), dist = eye.distanceTo(ph);
     const facing = Math.cos(Math.atan2(ph.x - e.pos.x, ph.z - e.pos.z) - (e.yaw + Math.PI)) > 0.2;
-    const sees = dist < 70 && (e.alert || facing && dist < 35) && !P.dead && los(eye, ph);
+    const vis = mission && mission.night && !P.nvgSeen && !e.alert ? 16 : 70;
+    const sees = dist < vis && (e.alert || facing && dist < Math.min(35, vis)) && !P.dead && !(game && game.noTargetPlayer) && los(eye, ph);
     if (sees) { e.sightT += dt; if (!e.alert && e.sightT > D.react) { e.alert = true; e.state = 'engage'; e.cool = D.react; } e.lastSeen = ph.clone(); } else e.sightT = 0;
     e.flinch = Math.max(0, (e.flinch || 0) - dt);
     if (!e.alert) { // patrull
@@ -436,18 +504,22 @@ function updateEnemies(dt){
     let moving = false;
     if (e.cover && !e.static) { moving = !moveEnemy(e, e.cover.x, e.cover.z, e.flinch > 0 ? 1.5 : 3.2, dt); }
     else if (!e.static && !sees && e.lastSeen) { moving = !moveEnemy(e, e.lastSeen.x, e.lastSeen.z, 2.5, dt); }
+    // liitlased / veokid sihtmärgiks
+    let tgtP = ph, ally = null;
+    if (game && game.allies && (!sees || Math.random() < 0.02 || e.allyLock)) { let bd = 60; for (const a of game.allies) { if (a.dead) continue; const ap = a.pos.clone().add(V3(0, a.h || 1.3, 0)), d = ap.distanceTo(eye); if (d < bd && los(eye, ap)) { bd = d; ally = a; tgtP = ap; } } if (ally && !e.alert) { e.alert = true; e.state = 'engage'; } e.allyLock = !!ally && !sees; }
     // piilu ja tulista
     const atCover = e.cover && !moving;
     if (atCover && e.cover.low) { e.peek -= dt; if (e.peek < -2.2) e.peek = rand(1.5, 2.8); e.crouchK = e.peek > 0 ? 0 : 1; } else e.crouchK = 0;
-    const face = Math.atan2(ph.x - e.pos.x, ph.z - e.pos.z) + Math.PI; e.yaw += Math.atan2(Math.sin(face - e.yaw), Math.cos(face - e.yaw)) * Math.min(1, dt * 6);
+    const face = Math.atan2(tgtP.x - e.pos.x, tgtP.z - e.pos.z) + Math.PI; e.yaw += Math.atan2(Math.sin(face - e.yaw), Math.cos(face - e.yaw)) * Math.min(1, dt * 6);
     e.cool -= dt;
-    if (sees && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ph, dist, moving); }
+    if ((sees || ally) && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ally ? tgtP : ph, ally ? eye.distanceTo(tgtP) : dist, moving, ally); }
     g.position.copy(e.pos); g.position.y += moving ? Math.abs(Math.sin(e.t * 9)) * 0.04 : 0; g.rotation.set(0, e.yaw, 0);
     g.scale.y = 1 - (e.crouchK || 0) * 0.35;
   }
 }
-function enemyShoot(e, ph, dist, moving){
+function enemyShoot(e, ph, dist, moving, ally){
   const D = DIFF[save.diff], mz = e.m.mz.getWorldPosition(V3());
+  if (ally) { const hitA = Math.random() < 0.35 * clamp(1.4 - dist / 40, 0.3, 1.2); S.enemyShot(mz); tracer(mz, ph.clone().add(hitA ? V3() : V3(rand(-1, 1), rand(-0.5, 0.5), rand(-1, 1))), 0xffe08a); if (hitA) ally.hurt(D.dmg * 0.8); return; }
   let p = D.acc * clamp(1.4 - dist / 40, 0.25, 1.2) * (P.crouch ? 0.6 : 1) * (moving ? 0.6 : 1) * (P.speed > 1 ? 0.7 : 1);
   const hit = Math.random() < p, tgt = ph.clone().add(hit ? V3(rand(-0.1, 0.1), -0.2, rand(-0.1, 0.1)) : V3(rand(-1.2, 1.2), rand(-0.8, 0.8), rand(-1.2, 1.2)));
   if (save.enemy === 'robot') S.laser(mz); else if (save.enemy === 'paint') S.paint(mz); else S.enemyShot(mz);
@@ -488,7 +560,7 @@ function updTargets(dt){ for (const t of targets) { const goal = t.up ? 1 : 0; t
 
 /* ===================== MÄNGU OLEK, REŽIIMID ===================== */
 let mode = 'hub', game = null, mission = null;
-function clearEnemies(){ for (const e of enemies) e.m.g.removeFromParent(); enemies.length = 0; for (let i = shootables.length - 1; i >= 0; i--) if (!targets.some(t => t.sh === shootables[i])) shootables.splice(i, 1); }
+function clearEnemies(){ clearMission(); for (const e of enemies) e.m.g.removeFromParent(); enemies.length = 0; for (let i = shootables.length - 1; i >= 0; i--) if (!targets.some(t => t.sh === shootables[i])) shootables.splice(i, 1); }
 function resetPlayer(x, z, rotY = 0, y = 0){
   P.hp = P.maxHp = 100; P.armor = 0; P.dead = false; P.regenT = 0; P.frags = 3; P.smokes = 2; P.nvg = false; nvgM.visible = false; hurtM.material.opacity = 0;
   for (const k of WORDER) { const g = guns[k]; g.ammo = g.def.mag; g.hasMag = true; g.mag.visible = true; drawAmmo(g); }
@@ -496,7 +568,7 @@ function resetPlayer(x, z, rotY = 0, y = 0){
   camera.getWorldPosition(head); rig.position.set(x - (renderer.xr.isPresenting ? head.x - rig.position.x : 0), y, z - (renderer.xr.isPresenting ? head.z - rig.position.z : 0));
   if (renderer.xr.isPresenting) { rig.rotation.y = rotY; } else { yaw = rotY; pitch = 0; rig.rotation.y = 0; }
 }
-function applyLight(){ const N = mission && mission.night ? NIGHT : DAY; scene.background.set(N.sky); scene.fog.color.set(P.nvg ? 0x062a10 : N.fog); hemi.intensity = P.nvg ? 1.4 : N.hemi; hemi.color.set(P.nvg ? 0x9cff9c : 0xdfe8f0); sun.intensity = N.sun; scene.fog.far = mission && mission.night && !P.nvg ? 45 : 190; torch.intensity = mission && mission.night && !P.nvg ? 25 : 0; }
+function applyLight(){ const N = mission && mission.night ? NIGHT : DAY; const night = N === NIGHT; skyM.visible = !night; scene.environment = night ? null : envTex; scene.background = night ? new THREE.Color(P.nvg ? 0x031a08 : N.sky) : null; stars.visible = night; scene.fog.color.set(P.nvg ? 0x062a10 : N.fog); hemi.intensity = P.nvg ? 1.4 : N.hemi; hemi.color.set(P.nvg ? 0x9cff9c : 0xdfe8f0); sun.intensity = night ? 0.5 : N.sun; sun.color.set(night ? 0x8fa8ff : 0xfff1dc); scene.fog.near = night ? 4 : 60; scene.fog.far = night && !P.nvg ? 55 : night ? 120 : 260; torch.intensity = mission && mission.night && !P.nvg ? 80 : 0; }
 function startGame(cfg){
   audioInit(); hideMenus(); clearEnemies(); clearTargets(); mission = cfg.mission || null;
   game = Object.assign({ t: 0, kills: 0, points: 0, shots: 0 }, cfg); mode = 'play';
@@ -604,20 +676,157 @@ function buildBuy(g){
   btn(buyMenu, 0.4, 0.1, 0, -0.3, '✖ Sulge', () => buyMenu.visible = false);
 }
 
+
+/* ===================== MISSIOONID ===================== */
+const missionG = new THREE.Group(); scene.add(missionG);
+let extraMeshes = [];
+let COL_BASE = 0;
+function clearMission(){ if (COL_BASE) COL.length = COL_BASE; while (missionG.children.length) missionG.children[0].removeFromParent(); for (const m of extraMeshes) m.removeFromParent(); extraMeshes = []; wireG.visible = false; heliSup.g.visible = false; }
+function heliModel(){
+  const g = new THREE.Group(), add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+  const body = std(0x3e4a33, { roughness: 0.6, metalness: 0.3 });
+  add(new THREE.CapsuleGeometry(1.1, 2.6, 8, 16).rotateX(Math.PI / 2), body, 0, 0, 0); add(new THREE.BoxGeometry(0.4, 0.5, 5), body, 0, 0.3, 3.6); add(new THREE.BoxGeometry(0.1, 1.2, 0.8), body, 0, 0.9, 6);
+  add(new THREE.SphereGeometry(0.9, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2), std(0x223344, { roughness: 0.1, metalness: 0.8 }), 0, 0.15, -1.7);
+  for (const x of [-0.9, 0.9]) add(new THREE.BoxGeometry(0.08, 0.08, 3), M.metal, x, -1.3, 0);
+  const rotor = new THREE.Group(); rotor.position.set(0, 1.3, 0); g.add(rotor); for (let i = 0; i < 4; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.04, 7), M.dark); b.rotation.y = i * Math.PI / 4 * 2; rotor.add(b); }
+  const tail = new THREE.Group(); tail.position.set(0.25, 0.9, 6); g.add(tail); for (let i = 0; i < 2; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.4, 0.12), M.dark); b.rotation.x = i * Math.PI / 2; tail.add(b); }
+  scene.add(g); return { g, rotor, tail };
+}
+function jetModel(){ const g = new THREE.Group(), m = std(0x6d747a, { metalness: 0.6, roughness: 0.4 }); const f = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 12, 10).rotateX(Math.PI / 2), m); g.add(f); const n = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3, 10).rotateX(-Math.PI / 2), m); n.position.z = -7.5; g.add(n); const w = new THREE.Mesh(new THREE.BoxGeometry(11, 0.15, 3.5), m); w.position.z = 0.5; g.add(w); const t = new THREE.Mesh(new THREE.BoxGeometry(4, 0.12, 1.6), m); t.position.z = 5.5; g.add(t); const v = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.2, 2), m); v.position.set(0, 1.1, 5.4); g.add(v); const fl = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffa040 })); fl.position.z = 6.2; g.add(fl); g.visible = false; scene.add(g); return g; }
+const heliSup = heliModel(); heliSup.g.visible = false;
+const jet = jetModel(); let jetT = 0, jetFrom = V3(), jetTo = V3(), jetBomb = null;
+function flyJet(from, to, bombAt){ jet.visible = true; jetT = 0; jetFrom.copy(from); jetTo.copy(to); jet.position.copy(from); jet.lookAt(to); jet.rotateY(Math.PI); jetBomb = bombAt; if (actx) { const t = actx.currentTime, o = out(from.clone().lerp(to, 0.4)); nz(t, 4, 500, 0.6, 'lowpass', o); tn(t, 220, 90, 4, 0.15, 'sawtooth', o); } }
+function updJet(dt){ if (!jet.visible) return; jetT += dt / 4; jet.position.lerpVectors(jetFrom, jetTo, jetT); if (jetBomb && jetT > 0.45) { const b = jetBomb; jetBomb = null; b.forEach((p, i) => setTimeout(() => explode(p, true), 500 + i * 220)); } if (jetT >= 1) jet.visible = false; }
+const intel = () => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.7), M.wood); t.position.y = 0.9; g.add(t); for (const [x, z] of [[-0.55, -0.3], [0.55, -0.3], [-0.55, 0.3], [0.55, 0.3]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.05), M.wood); l.position.set(x, 0.45, z); g.add(l); } const lb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), M.dark); lb.position.y = 0.94; g.add(lb); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.2), new THREE.MeshBasicMaterial({ color: 0x55ff99 })); sc.position.set(0, 1.04, -0.11); sc.rotation.x = -0.25; g.add(sc); const sb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), M.dark); sb.position.set(0, 1.04, -0.125); sb.rotation.x = -0.25; g.add(sb); missionG.add(g); return g; };
+function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0) { a.dead = true; msg('❗ Liitlane langes!', '#ff8a80', 2); } }; m.g.position.copy(a.pos); return a; }
+function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { const st = Math.min(d, speed * dt); a.pos.x += dx / d * st; a.pos.z += dz / d * st; a.yaw = Math.atan2(dx, dz) + Math.PI; moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.t * 8)) * 0.04 : 0; g.rotation.set(0, a.yaw, 0); return moving; }
+// objektiivid
+function objTick(g, dt){
+  if (g.oi == null) { g.oi = 0; }
+  const o = g.objs && g.objs[g.oi]; if (!o) return '';
+  camera.getWorldPosition(head); const p = typeof o.pos === 'function' ? o.pos() : o.pos;
+  if (p) { objPos = p; objLabel = o.icon || '◆'; }
+  let done = false;
+  if (o.done) done = o.done(g);
+  else if (o.near && p) { const d = Math.hypot(head.x - p.x, head.z - p.z); if (d < o.near) { if (o.hold) { g.holdT = (g.holdT || 0) + dt; if (g.holdT >= o.hold) done = true; } else done = true; } else g.holdT = 0; }
+  if (done) { g.holdT = 0; if (o.onDone) o.onDone(g); g.oi++; S.ok(); const nx = g.objs[g.oi]; if (nx) { msg('✔ ' + (typeof nx.t === 'function' ? nx.t(g) : nx.t), GOLD, 3); if (nx.onStart) nx.onStart(g); } else endGame(true); }
+  const t = typeof o.t === 'function' ? o.t(g) : o.t;
+  return o.hold && g.holdT ? `${t} ${'▮'.repeat(Math.round(g.holdT / o.hold * 8))}${'▯'.repeat(8 - Math.round(g.holdT / o.hold * 8))}` : t;
+}
+function missionScore(win){ const g = game, par = g.par || 240, st = !win ? 0 : 1 + (P.hp > 50 ? 1 : 0) + (g.t < par ? 1 : 0); return { stars: st, medal: '⭐'.repeat(st) + '☆'.repeat(3 - st), xp: win ? 100 : 20, val: win ? Math.round(g.t) : null, lines: [`Aeg: ${Math.floor(g.t / 60)}:${String(Math.floor(g.t % 60)).padStart(2, '0')}`, `Vastaseid tabatud: ${g.kills} • Elud: ${Math.round(P.hp)}%`] }; }
+const alive = () => enemies.filter(e => !e.dead).length;
+function squad(list){ return list.map(([x, z, p]) => spawnEnemy(x, z, { patrol: p })); }
+const MISSIONS = [
+  { id: 'm1', n: '🌙 Öine haarang', d: 'öövaatlus • luure' }, { id: 'm2', n: '🧍 Pantvang', d: 'päästa ja too välja' }, { id: 'm3', n: '🔭 Snaipri kate', d: 'kaitse salka katuselt' }, { id: 'm4', n: '🚚 Konvoi', d: 'kaitse veokeid' }, { id: 'm5', n: '💣 Pomm', d: 'desarmeeri ajaga' }
+];
+function startMission(i){
+  const base = { lowerBetter: true, tick: (g, dt) => { const s = g.extraTick ? g.extraTick(g, dt) : ''; return s || objTick(g, dt); }, score: missionScore, winTitle: 'MISSIOON TÄIDETUD' };
+  if (i === 0) startGame(Object.assign({}, base, { id: 'm1', mission: { id: 'm1', night: true, weapons: ['rifle', 'pistol', 'shotgun'] }, name: '🌙 Öine haarang', x: CX, z: CZ + 33, rot: 0, weapon: 'rifle', par: 300,
+    intro: '🌙 Vajuta X (arvutis N) – öövaatlus! Kõrvalda laohoone valvurid.', say: 'Öine haarang. Lülita öövaatlus sisse.',
+    init: g => { g.n = 10; squad([[CX + 12, CZ + 10], [CX + 16, CZ + 14], [CX + 10, CZ + 4, [[CX + 10, CZ + 4], [CX + 2, CZ + 4], [CX + 2, CZ + 20]]], [CX + 22, CZ + 4], [CX + 6, CZ + 19], [CX + 23, CZ + 20], [CX - 2, CZ + 12, [[CX - 2, CZ + 12], [CX - 2, CZ - 6]]], [CX + 5, CZ - 5], [CX - 9, CZ + 2], [CX + 27, CZ + 11]]);
+      const lp = intel(); lp.position.set(CX + 14, 0, CZ + 12); const hl = heliModel(); hl.g.visible = false; extraMeshes.push(hl.g); g.heli = hl;
+      g.objs = [{ t: g2 => `Kõrvalda valvurid (${g2.n - alive()}/${g2.n})`, pos: () => V3(CX + 14, 2, CZ + 12), done: () => alive() === 0, icon: '⚔' },
+        { t: 'Võta luureandmed – seisa sülearvuti juures', pos: V3(CX + 14, 1.2, CZ + 12), near: 1.5, hold: 2.5, icon: '💻', onDone: () => { lp.children[lp.children.length - 2].material.color.set(0x222222); say('Luureandmed käes. Mine kopteri juurde.'); } },
+        { t: 'Mine kopteri juurde! 🚁', pos: V3(CX, 0, CZ - 28), near: 4, icon: '🚁', onStart: g2 => { g2.heli.g.visible = true; g2.heli.g.position.set(CX - 60, 25, CZ - 60); g2.heliIn = 0; for (let k = 0; k < 4; k++) { const e = spawnEnemy(EDGE[k][0], EDGE[k][1], { alert: true }); e.lastSeen = V3(CX, 1.6, CZ - 20); } } }];
+      g.extraTick = (g2, dt) => { if (g2.heli.g.visible) { g2.heliIn = Math.min(1, g2.heliIn + dt / 10); const p = V3(CX - 60, 25, CZ - 60).lerp(V3(CX, 1.6, CZ - 28), g2.heliIn); g2.heli.g.position.copy(p); g2.heli.g.rotation.y = -Math.PI * 0.75; g2.heli.rotor.rotation.y += dt * 25; g2.heli.tail.rotation.x += dt * 30; } return ''; };
+    } }));
+  if (i === 1) startGame(Object.assign({}, base, { id: 'm2', mission: { id: 'm2', weapons: ['rifle', 'pistol', 'shotgun'] }, name: '🧍 Pantvangi päästmine', x: CX + 30, z: CZ - 28, rot: Math.PI / 4, weapon: 'rifle', par: 280,
+    intro: '🧍 Pantvang on loodeosa majas. ÄRA TABA PANTVANGI!', say: 'Leia pantvang ja too ta välja.',
+    init: g => { squad([[CX - 12, CZ + 9], [CX - 16, CZ + 15], [CX - 8, CZ + 20], [CX - 20, CZ + 5], [CX - 4, CZ + 6, [[CX - 4, CZ + 6], [CX - 4, CZ - 10]]], [CX + 6, CZ - 8], [CX - 24, CZ + 20], [CX + 2, CZ + 14], [CX - 10, CZ - 2], [CX - 28, CZ + 10]]);
+      const h = makeAlly(CX - 15.5, CZ + 15, 'ally'); h.m.g.scale.set(1, 0.7, 1); h.yaw = 0; g.hostage = h; h.free = false;
+      h.sh = { test: (o, d, maxT) => { const c = h.pos.clone().add(V3(0, h.free ? 1.1 : 0.8, 0)); const t = raySphere(o, d, c, 0.3); return t < maxT ? { t, part: 'b' } : null; }, hit: () => { if (game === g) { g.hostageHit = true; endGame(false, '❌ Tabasid pantvangi!'); } } }; shootables.push(h.sh); g.cleanupSh = h.sh;
+      g.objs = [{ t: 'Leia pantvang ja vabasta (seisa tema juures)', pos: () => h.pos.clone().add(V3(0, 1.4, 0)), near: 1.4, hold: 2, icon: '🧍', onDone: () => { h.free = true; h.m.g.scale.set(1, 1, 1); say('Tule minuga!'); } },
+        { t: 'Vii pantvang lõunaväravasse 🚩', pos: V3(CX, 0, CZ + 36), done: () => Math.hypot(h.pos.x - CX, h.pos.z - (CZ + 36)) < 4, icon: '🚩', onStart: () => { for (let k = 0; k < 3; k++) { const e = spawnEnemy(EDGE[k + 4][0], EDGE[k + 4][1], { alert: true }); e.lastSeen = V3(CX - 15, 1.6, CZ + 15); } } }];
+      g.extraTick = (g2, dt) => { if (h.free) { camera.getWorldPosition(head); const d = Math.hypot(head.x - h.pos.x, head.z - h.pos.z); updAlly(h, dt, d > 1.8 ? V3(head.x, 0, head.z) : null, 2.6); } else { h.m.g.position.copy(h.pos); } return ''; };
+    } }));
+  if (i === 2) startGame(Object.assign({}, base, { id: 'm3', mission: { id: 'm3', weapons: ['sniper', 'rifle', 'pistol'] }, name: '🔭 Snaipri kate', x: CX + 14, z: CZ + 14, y: 6.2, rot: 0, weapon: 'sniper', par: 200, bounds: [CX + 8.6, CX + 19.4, CZ + 7.6, CZ + 16.4],
+    intro: '🔭 Kaitse salka katuselt! Salk liigub mööda teed põhja poole.', say: 'Snaipri kate. Kaitse salka.',
+    init: g => { g.allies = [0, 1, 2].map(k => makeAlly(CX - 1 + k * 0.9, CZ + 36 + k * 1.5)); g.spawned = 0; g.total = 12; g.wp = CZ + 36;
+      g.objs = [{ t: g2 => `Kaitse salka: ${g2.allies.filter(a => !a.dead).length}/3 elus • vastaseid ${g2.total - g2.spawned + alive()}`, pos: () => g.allies.find(a => !a.dead) ? g.allies.find(a => !a.dead).pos.clone().add(V3(0, 2.2, 0)) : null, done: g2 => g2.wp <= CZ - 32 && alive() === 0 && g2.spawned >= g2.total, icon: '🛡' }];
+      g.extraTick = (g2, dt) => {
+        const live = g2.allies.filter(a => !a.dead); if (!live.length) { endGame(false, '❌ Salk langes'); return ''; }
+        const contact = enemies.some(e => !e.dead && e.alert && e.pos.distanceTo(live[0].pos) < 28);
+        if (!contact) g2.wp = Math.max(CZ - 34, g2.wp - dt * 1.4);
+        g2.allies.forEach((a, k) => { updAlly(a, dt, contact ? null : V3(CX - 1 + k * 0.9, 0, g2.wp + k * 1.5), 1.6); if (!a.dead && contact) { a.shootT = (a.shootT || rand(1, 3)) - dt; if (a.shootT <= 0) { a.shootT = rand(1.5, 3); const tgt = enemies.find(e => !e.dead && e.pos.distanceTo(a.pos) < 30); if (tgt) { const mz = a.m.mz.getWorldPosition(V3()); tracer(mz, tgt.pos.clone().add(V3(0, 1.3, 0)), 0x9fd7ff); S.enemyShot(mz); if (Math.random() < 0.25) damageEnemy(tgt, 40, tgt.pos.clone().add(V3(0, 1.2, 0)), V3(0, 0, 1), 'body'); } } } });
+        if (g2.spawned < g2.total && (alive() < 3 || g2.t2 === undefined)) { g2.t2 = 0; const n = Math.min(3, g2.total - g2.spawned); for (let k = 0; k < n; k++) { const z = g2.wp - rand(14, 26), x = CX + pick([-1, 1]) * rand(6, 18); const e = spawnEnemy(x, z, { alert: true }); e.lastSeen = live[0].pos.clone(); g2.spawned++; } }
+        return '';
+      };
+    } }));
+  if (i === 3) startGame(Object.assign({}, base, { id: 'm4', mission: { id: 'm4', weapons: ['rifle', 'pistol', 'shotgun', 'sniper'] }, name: '🚚 Konvoi kaitse', x: CX, z: CZ - 22, rot: Math.PI, weapon: 'rifle', par: 260,
+    intro: '🚚 Veokid on rünnaku all! Kaitse neid 3 lainet.', say: 'Kaitse konvoid!',
+    init: g => { g.allies = []; g.truckHp = 900; for (const x of [CX - 14, CX - 6, CX + 6]) { const t = truck(x, CZ - 27.5, Math.PI / 2, missionG); const a = { pos: V3(x, 0, CZ - 27.5), h: 1.4, dead: false, hurt: d => { g.truckHp -= d; if (Math.random() < 0.3) emit(a.pos.clone().add(V3(rand(-2, 2), 2, rand(-1, 1))), V3(0, 1, 0), 0x333333, 0.8, 3, 0, 0.5); } }; g.allies.push(a); }
+      g.wave = 0; g.toSpawn = 0; g.breakT = 3;
+      g.objs = [{ t: g2 => `Laine ${g2.wave}/3 • veokid ${Math.max(0, Math.round(g2.truckHp / 9))}% • vastaseid ${alive() + g2.toSpawn}`, pos: V3(CX - 4, 3, CZ - 27.5), done: g2 => g2.wave >= 3 && g2.toSpawn === 0 && alive() === 0, icon: '🚚' }];
+      g.extraTick = (g2, dt) => { if (g2.truckHp <= 0) { endGame(false, '❌ Konvoi hävitati'); return ''; }
+        if (g2.toSpawn > 0) { g2.spT = (g2.spT || 0) - dt; if (g2.spT <= 0 && alive() < 8) { const [x, z] = pick(EDGE.filter(e => e[1] > CZ - 30)); const e = spawnEnemy(x + rand(-3, 3), z, { alert: true }); e.lastSeen = V3(CX, 1.4, CZ - 27); g2.toSpawn--; g2.spT = rand(0.8, 1.8); } }
+        else if (alive() === 0 && g2.wave < 3) { g2.breakT -= dt; if (g2.breakT <= 0) { g2.wave++; g2.toSpawn = 4 + g2.wave * 2; g2.breakT = 8; msg(`⚠️ LAINE ${g2.wave}/3!`, '#ff8a80', 2.5); say('Kontakt põhjast!'); } }
+        return ''; };
+    } }));
+  if (i === 4) { const COLS = [['PUNANE', 0xd32f2f], ['SININE', 0x1976d2], ['ROHELINE', 0x388e3c], ['KOLLANE', 0xfbc02d]], ok = Math.floor(rand(0, 4));
+    startGame(Object.assign({}, base, { id: 'm5', mission: { id: 'm5', weapons: ['rifle', 'pistol', 'shotgun'] }, name: '💣 Pommi desarmeerimine', x: CX - 30, z: CZ + 30, rot: -Math.PI / 4, weapon: 'rifle', par: 120,
+      intro: `💣 Luure: lõika ${COLS[ok][0]} juhe! Pomm on idaosa majas. Aega 2:30.`, say: `Lõika ${COLS[ok][0].toLowerCase()} juhe.`,
+      init: g => { squad([[CX + 12, CZ - 10], [CX + 10, CZ - 14], [CX + 15, CZ - 5], [CX + 4, CZ - 12], [CX + 20, CZ - 18, [[CX + 20, CZ - 18], [CX + 20, CZ - 2]]], [CX + 2, CZ - 2], [CX - 6, CZ + 10], [CX + 24, CZ - 8], [CX - 14, CZ + 2]]);
+        const bomb = new THREE.Group(); bomb.position.set(CX + 12, 0, CZ - 12.5); missionG.add(bomb); const cr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), M.wood); cr.position.y = 0.4; bomb.add(cr); const bx = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.35), M.dark); bx.position.y = 0.93; bomb.add(bx); COLS.forEach(([n, c], k) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.4, 6).rotateZ(Math.PI / 2), std(c)); w.position.set(0, 0.97, -0.1 + k * 0.06); bomb.add(w); }); const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff0000 })); led.position.set(0.18, 1.08, 0); bomb.add(led); g.led = led; g.left = 150;
+        g.objs = [{ t: g2 => `Leia pomm (lõika ${COLS[ok][0]})`, pos: V3(CX + 12, 1.3, CZ - 12.5), near: 1.4, icon: '💣', onDone: () => { openWires(COLS, ok); } }, { t: 'Lõika õige juhe!', pos: V3(CX + 12, 1.3, CZ - 12.5), done: () => false, icon: '✂' }];
+        g.extraTick = (g2, dt) => { g2.left -= dt; g2.led.visible = Math.sin(g2.t * (g2.left < 30 ? 20 : 6)) > 0; if (Math.floor(g2.left) !== g2.lastBeep) { g2.lastBeep = Math.floor(g2.left); if (g2.left < 30) S.beep(1400); } if (g2.left <= 0) { wireG.visible = false; explode(V3(CX + 12, 1, CZ - 12.5), true, 14); endGame(false, '💥 Pomm plahvatas!'); return ''; } const tt = `⏱ ${Math.floor(g2.left / 60)}:${String(Math.floor(g2.left % 60)).padStart(2, '0')} • `; return tt + objTick(g2, dt); };
+      } })); }
+}
+// juhtmepaneel
+const wireG = new THREE.Group(); scene.add(wireG); wireG.visible = false; const wireP = new Panel(0.9, 0.5); wireG.add(wireP.mesh); const wireBtns = [];
+function openWires(COLS, ok){
+  for (const b of wireBtns) { b.p.mesh.removeFromParent(); buttons.splice(buttons.indexOf(b), 1); } wireBtns.length = 0;
+  wireP.draw((c, W, H) => { bg(c, W, H, '#ff5252'); txt(c, '✂ LÕIKA JUHE', W / 2, H * 0.15, H * 0.12, '#ff8a80', '900'); });
+  COLS.forEach(([n, col], k) => { const b = btn(wireG, 0.19, 0.16, -0.31 + k * 0.205, -0.05, n, () => { wireG.visible = false; if (k === ok) { S.ok(); say('Pomm desarmeeritud'); msg('✔ Pomm desarmeeritud!', '#9cff57', 3); game.oi = 99; endGame(true); } else { explode(V3(CX + 12, 1, CZ - 12.5), true, 14); endGame(false, '💥 Vale juhe!'); } }, '#' + new THREE.Color(col).getHexString()); wireBtns.push(b); });
+  placeInFront(wireG, 0.7, -0.25); wireG.visible = true; if (document.pointerLockElement) document.exitPointerLock();
+}
+/* ===================== TAPMISSEERIAD (üllatus) ===================== */
+const STREAKS = [[3, 'uav', '📡 DROON'], [5, 'air', '✈️ ÕHULÖÖK'], [8, 'heli', '🚁 KOPTERI TOETUS']];
+let uavT = 0, heliT = 0, heliShootT = 0;
+const uavMarks = Array.from({ length: 16 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(64, 64, (c) => { c.fillStyle = '#ff2020'; c.beginPath(); c.moveTo(32, 60); c.lineTo(8, 16); c.lineTo(56, 16); c.closePath(); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 4; c.stroke(); }), depthTest: false, fog: false })); sp.scale.set(0.5, 0.5, 1); sp.renderOrder = 70; sp.visible = false; scene.add(sp); return sp; });
+function streakKill(){ game.streak = (game.streak || 0) + 1; for (const [n, k, name] of STREAKS) if (game.streak === n) { game.ready = k; S.ok(); msg(`${name} VALMIS! Vajuta X (arvutis Q)`, GOLD, 4); say(name.replace(/[^A-Za-zÕÄÖÜõäöü ]/g, '') + ' valmis'); } }
+function useStreak(){
+  if (!game || !game.ready || mode !== 'play') return false; const k = game.ready; game.ready = null;
+  if (k === 'uav') { uavT = 25; msg('📡 Droon üleval – vastased on näha punasega', GOLD, 3); say('Droon üleval'); }
+  if (k === 'air') { const g = guns[P.weapon]; let o, d; if (renderer.xr.isPresenting) { o = g.mz.getWorldPosition(V3()); d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); } else { o = camera.getWorldPosition(V3()); d = camera.getWorldDirection(V3()); } const t = Math.min(castWorld(o, d, 160).t, 160); const p = o.clone().addScaledVector(d, t); p.y = 0; camera.getWorldPosition(head); if (Math.hypot(p.x - head.x, p.z - head.z) < 12) { msg('⚠️ Liiga lähedal! Siht kaugemale', '#ff8a80', 2); game.ready = 'air'; return true; } const dir = V3(p.x - head.x, 0, p.z - head.z).normalize(), side = V3(-dir.z, 0, dir.x); const bombs = [-8, -4, 0, 4, 8].map(k2 => p.clone().addScaledVector(dir, k2).addScaledVector(side, rand(-1.5, 1.5))); flyJet(p.clone().addScaledVector(dir, -250).add(V3(0, 60, 0)), p.clone().addScaledVector(dir, 250).add(V3(0, 60, 0)), bombs); msg('✈️ Õhulöök tulekul!', GOLD, 2.5); say('Õhulöök tulekul'); }
+  if (k === 'heli') { heliT = 30; heliSup.g.visible = true; msg('🚁 Kopter toetab!', GOLD, 3); say('Kopter saabub'); }
+  return true;
+}
+function updStreaks(dt){
+  uavT -= dt; let k = 0; for (const e of enemies) { if (uavT > 0 && !e.dead && k < uavMarks.length) { uavMarks[k].position.copy(e.pos).add(V3(0, 2.2, 0)); uavMarks[k].visible = true; k++; } } for (; k < uavMarks.length; k++) uavMarks[k].visible = false;
+  if (heliT > 0 && mode === 'play') { heliT -= dt; camera.getWorldPosition(head); const a = performance.now() / 4000; heliSup.g.position.set(head.x + Math.cos(a) * 20, 22, head.z + Math.sin(a) * 20); heliSup.g.rotation.y = -a; heliSup.rotor.rotation.y += dt * 25; heliSup.tail.rotation.x += dt * 30; heliShootT -= dt;
+    if (heliShootT <= 0) { heliShootT = 1.3; const hp = heliSup.g.position.clone().add(V3(0, -1.5, 0)); const tg = enemies.find(e => !e.dead && los(hp, e.pos.clone().add(V3(0, 1.2, 0)))); if (tg) { for (let i = 0; i < 5; i++) setTimeout(() => { tracer(hp, tg.pos.clone().add(V3(rand(-0.5, 0.5), rand(0.5, 1.5), rand(-0.5, 0.5))), 0xffd27a); S.enemyShot(hp); }, i * 70); setTimeout(() => damageEnemy(tg, 250, tg.pos.clone().add(V3(0, 1.2, 0)), V3(0, -1, 0), 'body'), 350); } }
+    if (heliT <= 0) heliSup.g.visible = false; }
+}
+/* ===================== ATMOSFÄÄR ===================== */
+let ambT = 8, jetAmbT = 30;
+function updAtmos(dt){
+  const night = mission && mission.night;
+  for (const c of SMOKE_COL) if (Math.random() < dt * 6) emit(c.clone().add(V3(rand(-4, 4), rand(0, 6), rand(-4, 4))), V3(rand(0.5, 1.5), rand(2, 4), rand(-0.5, 0.5)), pick([0x6a6662, 0x7a7570, 0x5a5652]), rand(6, 10), rand(8, 12), 0, 2.5);
+  for (const f of fires) { f.l.intensity = 2.5 + Math.sin(performance.now() / 70 + f.p.x) * 0.8 + rand(-0.4, 0.4); if (Math.random() < dt * 30) emit(f.p.clone().add(V3(rand(-0.6, 0.6), 0, rand(-1, 1))), V3(rand(-0.2, 0.2), rand(1, 2), rand(-0.2, 0.2)), pick([0xff7a2a, 0xffb347, 0xff5020]), rand(0.3, 0.6), rand(0.4, 0.8), 0, -0.4); if (Math.random() < dt * 6) emit(f.p.clone().add(V3(0, 1.2, 0)), V3(rand(-0.3, 0.3), 1.5, rand(-0.3, 0.3)), 0x55514d, 1.2, 4, 0, 0.8); }
+  ambT -= dt; if (ambT <= 0) { ambT = rand(8, 22); camera.getWorldPosition(head); const a = rand(0, 6.28), p = head.clone().add(V3(Math.cos(a) * 220, 0, Math.sin(a) * 220)); S.boom(p); if (Math.random() < 0.5) for (let i = 0; i < 6; i++) setTimeout(() => S.enemyShot(head.clone().add(V3(Math.cos(a + 0.3) * 150, 0, Math.sin(a + 0.3) * 150))), i * 110); }
+  jetAmbT -= dt; if (jetAmbT <= 0 && !night && !jet.visible) { jetAmbT = rand(40, 80); camera.getWorldPosition(head); const a = rand(0, 6.28), d = V3(Math.cos(a), 0, Math.sin(a)); flyJet(head.clone().addScaledVector(d, -400).add(V3(0, 90, 0)), head.clone().addScaledVector(d, 400).add(V3(0, 90, 0)), null); }
+  updJet(dt);
+  // objektiivi marker
+  if (objPos && mode === 'play') { objMark.mesh.visible = true; camera.getWorldPosition(head); const d = head.distanceTo(objPos); objMark.mesh.position.copy(objPos).add(V3(0, 1.0, 0)); objMark.mesh.lookAt(head); objMark.mesh.scale.setScalar(clamp(d / 8, 0.6, 6)); if (Math.floor(d) !== objMark.lastD) { objMark.lastD = Math.floor(d); objMark.draw((c, W, H) => { txt(c, objLabel, W / 2, H * 0.35, H * 0.5, GOLD); txt(c, `${Math.round(d)} m`, W / 2, H * 0.82, H * 0.28, '#fff'); }); } } else objMark.mesh.visible = false;
+  if (P.nvg) P.nvgSeen = false;
+}
+
 /* ===================== MENÜÜD ===================== */
 const menuG = new THREE.Group(); scene.add(menuG);
 const menuP = new Panel(1.7, 1.3, 450); menuG.add(menuP.mesh);
 function drawMenu(){ menuP.draw((c, W, H) => { bg(c, W, H, OD); txt(c, '🎖️ EESLIIN VR', W / 2, H * 0.07, H * 0.065, GOLD, '900'); const r = rankIdx(), nx = rankXp(r + 1), cur = rankXp(r); txt(c, `${RANKS[r]} • ${save.xp} XP${r < RANKS.length - 1 ? ` (järgmine: ${RANKS[r + 1]} @ ${nx})` : ''}`, W / 2, H * 0.135, H * 0.032, '#b9c0a8'); c.fillStyle = '#333'; c.fillRect(W * 0.25, H * 0.16, W * 0.5, H * 0.012); c.fillStyle = GOLD; c.fillRect(W * 0.25, H * 0.16, W * 0.5 * clamp((save.xp - cur) / Math.max(1, nx - cur), 0, 1), H * 0.012);
-  txt(c, 'TREENING', W * 0.2, H * 0.22, H * 0.03, GOLD); txt(c, 'LAHING', W * 0.5, H * 0.22, H * 0.03, GOLD); txt(c, 'SEADED', W * 0.8, H * 0.22, H * 0.03, GOLD); txt(c, '🎬 MISSIOONID – tulekul järgmises versioonis', W / 2, H * 0.84, H * 0.03, '#b9c0a8', 'normal'); txt(c, 'Vabaharjutus: lase tiiru märklaudu ka ilma menüüta • Y/Esc = menüü', W / 2, H * 0.92, H * 0.026, '#8a917a', 'normal'); }); }
+  txt(c, 'TREENING', W * 0.2, H * 0.22, H * 0.03, GOLD); txt(c, 'LAHING', W * 0.5, H * 0.22, H * 0.03, GOLD); txt(c, 'SEADED', W * 0.8, H * 0.22, H * 0.03, GOLD); txt(c, '🎬 MISSIOONID', W / 2, H * 0.665, H * 0.032, GOLD); txt(c, 'Tapmisseeria: 3 = 📡 droon • 5 = ✈️ õhulöök • 8 = 🚁 kopter (X / Q) • Y/Esc = menüü', W / 2, H * 0.955, H * 0.024, '#8a917a', 'normal'); }); }
 const MB = {};
 MB.acc = btn(menuG, 0.46, 0.12, -0.56, 0.27, '🎯 Täpsus', () => rangeDrill('acc')); MB.speed = btn(menuG, 0.46, 0.12, -0.56, 0.13, '⚡ Kiirus', () => rangeDrill('speed')); MB.snip = btn(menuG, 0.46, 0.12, -0.56, -0.01, '🔭 Snaiper', () => rangeDrill('snip')); MB.kh = btn(menuG, 0.46, 0.12, -0.56, -0.15, '🏃 Tapamaja', () => killhouse());
 MB.waves = btn(menuG, 0.46, 0.14, 0, 0.26, '🧟 Lained', () => waves(), '#c0392b'); MB.free = btn(menuG, 0.46, 0.12, 0, 0.1, '🔫 Vaba harjutus', () => { hideMenus(); msg('🔫 Lase märklaudu! Y/Esc = menüü', GOLD, 2.5); }); MB.arm = btn(menuG, 0.46, 0.12, 0, -0.05, '🛠️ Relvad', () => openArmory());
+MISSIONS.forEach((m, i) => { MB['m' + i] = btn(menuG, 0.3, 0.13, -0.64 + i * 0.32, -0.3, m.n, () => startMission(i), '#c9a227'); });
 MB.enemy = btn(menuG, 0.46, 0.11, 0.56, 0.27, '', () => { save.enemy = { soldier: 'robot', robot: 'paint', paint: 'soldier' }[save.enemy]; persist(); refreshMenu(); });
 MB.diff = btn(menuG, 0.46, 0.11, 0.56, 0.13, '', () => { save.diff = (save.diff + 1) % 3; persist(); refreshMenu(); });
 MB.reload = btn(menuG, 0.46, 0.11, 0.56, -0.01, '', () => { save.reload = save.reload === 'manual' ? 'auto' : 'manual'; persist(); refreshMenu(); });
 MB.move = btn(menuG, 0.46, 0.11, 0.56, -0.15, '', () => { save.move = save.move === 'smooth' ? 'teleport' : 'smooth'; persist(); refreshMenu(); });
 function refreshMenu(){ MB.enemy.label = { soldier: '🪖 Vastased: Sõdurid', robot: '🤖 Vastased: Robotid', paint: '🎨 Vastased: Värvikuulid' }[save.enemy]; MB.diff.label = 'Raskus: ' + DIFF[save.diff].n; MB.reload.label = save.reload === 'manual' ? '🔄 Laadimine: käsitsi' : '🔄 Laadimine: automaatne'; MB.move.label = save.move === 'smooth' ? '🚶 Liikumine: sujuv' : '✨ Liikumine: teleport';
   MB.acc.sub = save.best.range_acc ? `rekord ${save.best.range_acc}/100` : 'staatilised märklauad'; MB.speed.sub = save.best.range_speed ? `rekord ${save.best.range_speed}` : 'hüpikmärklauad'; MB.snip.sub = rankIdx() >= 0 ? (save.best.range_snip ? `rekord ${save.best.range_snip}/80` : '100–200 m') : ''; MB.kh.sub = save.best.kh != null ? `rekord ${save.best.kh} s` : 'vastased + tsiviilid'; MB.waves.sub = save.best.waves ? `rekord: laine ${save.best.waves}` : 'kaitse positsiooni';
+  MISSIONS.forEach((m, i) => { const st = save.mis[m.id] || 0; MB['m' + i].sub = st ? '⭐'.repeat(st) + '☆'.repeat(3 - st) : m.d; });
   Object.values(MB).forEach(b => b.draw()); drawMenu(); }
 function openMenu(){ hideMenus(); refreshMenu(); placeInFront(menuG, 1.35, -0.1); menuG.visible = true; if (document.pointerLockElement) document.exitPointerLock(); }
 // relvaruum
@@ -640,11 +849,12 @@ const origStart = startGame;
 /* ===================== GRANAADID ===================== */
 function throwProp(type, pos, vel){ if (type === 'frag' && P.frags <= 0 || type === 'smoke' && P.smokes <= 0) { msg(type === 'frag' ? '💣 Granaadid otsas' : '🌫️ Suitsud otsas', '#ff8a80', 1.2); return null; } if (type === 'frag') P.frags--; else P.smokes--; const p = newProp(type, pos); p.vel.copy(vel); p.live = true; S.click(); return p; }
 function deskThrow(type){ camera.getWorldDirection(tmpD); camera.getWorldPosition(tmpV); throwProp(type, tmpV.clone().addScaledVector(tmpD, 0.4), tmpD.clone().multiplyScalar(13).add(V3(0, 3.5, 0))); }
-function explode(p){
+function explode(p, big = false, R = 7){
   S.boom(p); flash.position.copy(p).add(V3(0, 0.5, 0)); flash.intensity = 30; setTimeout(() => flash.intensity = 0, 120);
   for (let i = 0; i < 60; i++) emit(p, V3(rand(-1, 1), rand(0.3, 1.5), rand(-1, 1)).normalize().multiplyScalar(rand(3, 9)), pick([0xffb74d, 0xff7043, 0xffe082]), 0.12, rand(0.3, 0.6), -4);
   for (let i = 0; i < 30; i++) emit(p.clone().add(V3(0, 0.5, 0)), V3(rand(-1.5, 1.5), rand(0.5, 2.5), rand(-1.5, 1.5)), pick([0x555555, 0x777777, 0x3a3a3a]), 0.6, rand(1.5, 3), 0, 0.8);
-  for (const e of enemies) { if (e.dead) continue; const d = e.pos.distanceTo(p); if (d < 7 && los(p.clone().add(V3(0, 0.4, 0)), e.pos.clone().add(V3(0, 1, 0)))) damageEnemy(e, 220 * (1 - d / 7.5), e.pos.clone().add(V3(0, 1, 0)), e.pos.clone().sub(p).normalize(), 'body'); }
+  if (big) { for (let i = 0; i < 40; i++) emit(p.clone().add(V3(0, 1, 0)), V3(rand(-2, 2), rand(1, 4), rand(-2, 2)), pick([0x222222, 0x444444]), 2, rand(3, 5), 0, 1.2); }
+  for (const e of enemies) { if (e.dead) continue; const d = e.pos.distanceTo(p); if (d < R && los(p.clone().add(V3(0, 0.4, 0)), e.pos.clone().add(V3(0, 1, 0)))) damageEnemy(e, 220 * (1 - d / (R + 0.5)), e.pos.clone().add(V3(0, 1, 0)), e.pos.clone().sub(p).normalize(), 'body'); }
   camera.getWorldPosition(head); const dp = head.distanceTo(p); if (dp < 6) hurtPlayer(70 * (1 - dp / 6), p); if (dp < 15) for (const h of hands) pulse(h, 1, 300);
   for (const t of targets) if (t.up && t.g.position.distanceTo(p) < 5) t.sh.hit(t.g.position.clone().add(V3(0, 1, 0)), V3(0, 1, 0), 0, V3());
 }
@@ -673,10 +883,10 @@ function readXR(dt){
     if (src.handedness === 'left') {
       mx = sx; my = sy;
       edge('lgrip', gr, () => leftGrab(h)); if (!gr && btnPrev.lgripHeld) leftRelease(h); btnPrev.lgripHeld = gr;
-      edge('X', b[4] && b[4].pressed, () => toggleNvg()); edge('Y', b[5] && b[5].pressed, () => { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); else if (mode === 'hub') { if (menuG.visible) hideMenus(); else openMenu(); } });
+      edge('X', b[4] && b[4].pressed, () => { if (!useStreak()) toggleNvg(); }); edge('Y', b[5] && b[5].pressed, () => { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); else if (mode === 'hub') { if (menuG.visible) hideMenus(); else openMenu(); } });
     } else {
       if (Math.abs(sx) > 0.7 && snapReady) { snapReady = false; turn(sx > 0 ? -Math.PI / 6 : Math.PI / 6); } else if (Math.abs(sx) < 0.3) snapReady = true;
-      edge('A', b[4] && b[4].pressed, () => { if (mode === 'play' || mode === 'hub') ejectMag(); }); edge('B', b[5] && b[5].pressed, () => { if (mode === 'play' || mode === 'hub') cycleWeapon(); });
+      edge('A', b[4] && b[4].pressed, () => { if (mode === 'play' || mode === 'hub') { if (save.reload === 'auto') startReload(); else ejectMag(); } }); edge('B', b[5] && b[5].pressed, () => { if (mode === 'play' || mode === 'hub') cycleWeapon(); });
       if (save.move === 'teleport') { if (sy < -0.6) tpAim = h; else if (tpAim === h && Math.abs(sy) < 0.2) { doTeleport(); tpAim = null; } }
     }
   }
@@ -720,7 +930,7 @@ function handGestures(h){
   const Pp = palm.getWorldPosition(V3()), I = it.getWorldPosition(V3()), T = th.getWorldPosition(V3());
   const curl = (I.distanceTo(Pp) + mt.getWorldPosition(V3()).distanceTo(Pp) + rt.getWorldPosition(V3()).distanceTo(Pp)) / 3, pinch = I.distanceTo(T);
   h.hHold.position.copy(Pp); w.getWorldQuaternion(h.hHold.quaternion);
-  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; }
+  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; h.selTrig = false; const mm = J(h, 'middle-finger-metacarpal'), im = J(h, 'index-finger-metacarpal'), pm = J(h, 'pinky-finger-metacarpal'); if (mm && im && pm) { const W0 = w.getWorldPosition(V3()), fwd = mm.getWorldPosition(V3()).sub(W0).normalize(), side = im.getWorldPosition(V3()).sub(pm.getWorldPosition(V3())).normalize(); const up = side.sub(fwd.clone().multiplyScalar(side.dot(fwd))).normalize(), zAx = fwd.clone().negate(), xAx = up.clone().cross(zAx); h.gunQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, up, zAx)); } }
   else { const closed = curl < 0.07, open = curl > 0.085; if (!h.gClosed && closed) { h.gClosed = true; leftGrab(h); } else if (h.gClosed && open) { h.gClosed = false; leftRelease(h); } }
 }
 
@@ -729,7 +939,7 @@ function updateWeapon(dt){
   const g = guns[P.weapon]; if (!g) return; g.g.visible = true;
   if (renderer.xr.isPresenting) {
     const h = R(); if (!h) { g.g.visible = false; return; }
-    if (h.isHand) { g.g.position.copy(h.hHold.position); g.g.quaternion.copy(h.hHold.quaternion); g.g.translateZ(0.02); }
+    if (h.isHand) { g.g.position.copy(h.hHold.position); if (h.gunQ) g.g.quaternion.copy(h.gunQ); else g.g.quaternion.copy(h.hHold.quaternion); g.g.translateY(0.04); }
     else { h.holder.getWorldPosition(g.g.position); h.holder.getWorldQuaternion(g.g.quaternion); }
     const lh = L(); if (P.twoHand && lh && g.fore) { const lp = handPos(lh, V3()); const dir = lp.sub(g.g.position).normalize(); const up = V3(0, 1, 0).applyQuaternion(g.g.quaternion); const m = new THREE.Matrix4().lookAt(V3(), dir.clone().negate().negate(), up); g.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(g.g.position, g.g.position.clone().add(dir), up)); }
     if (P.kick) { g.g.rotateX(P.kick * 2); g.g.translateZ(P.kick * 0.5); P.kick *= Math.exp(-dt * 20); if (P.kick < 0.002) P.kick = 0; }
@@ -740,6 +950,9 @@ function updateWeapon(dt){
     const fov = ads ? (g.def.scope ? 75 / g.def.scope : 55) : 75; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
     document.getElementById('cross').style.display = ads && !g.def.scope ? 'none' : '';
   }
+  // laser (VR sihtimisabi)
+  laserDot.visible = laserBeam.visible = false;
+  if (renderer.xr.isPresenting && g.kind !== 'sniper' && mode !== 'end') { const o = g.mz.getWorldPosition(V3()), d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); let t = castWorld(o, d, 120).t; for (const sh of shootables) { const r = sh.test(o, d, t); if (r && r.t < t) t = r.t; } if (t < 120) { laserDot.position.copy(o).addScaledVector(d, t - 0.02); laserDot.scale.setScalar(Math.max(1, t * 0.08)); laserDot.visible = true; } laserBeam.position.copy(o); laserBeam.lookAt(o.clone().add(d)); laserBeam.scale.set(1, 1, Math.min(t, 120)); laserBeam.rotation.z = 0; laserBeam.visible = true; }
   // laadimine (taimer)
   if (P.reloadT > 0) { P.reloadT -= dt; if (P.reloadT <= 0) { insertMag(); } }
   // snaipri sihiku pilt
@@ -761,10 +974,10 @@ const info = document.getElementById('info');
 renderer.xr.addEventListener('sessionstart', () => { info.style.display = 'none'; document.getElementById('cross').style.display = 'none'; audioInit(); camera.fov = 75; setTimeout(() => { if (menuG.visible) placeInFront(menuG, 1.35, -0.1); if (endG.visible) placeInFront(endG, 1.3, -0.1); }, 400); hudP.mesh.position.set(0, -0.35, -0.9); const s = renderer.xr.getSession(); s.addEventListener('visibilitychange', () => { if (s.visibilityState !== 'visible' && mode === 'play') pauseGame(); }); });
 renderer.xr.addEventListener('sessionend', () => { info.style.display = ''; document.getElementById('cross').style.display = ''; camera.position.set(0, 1.65, 0); rig.rotation.y = 0; });
 // taaskäivitamise sidumine
-const RESTART = { range_acc: () => rangeDrill('acc'), range_speed: () => rangeDrill('speed'), range_snip: () => rangeDrill('snip'), kh: killhouse, waves };
+const RESTART = { m1: () => startMission(0), m2: () => startMission(1), m3: () => startMission(2), m4: () => startMission(3), m5: () => startMission(4), range_acc: () => rangeDrill('acc'), range_speed: () => rangeDrill('speed'), range_snip: () => rangeDrill('snip'), kh: killhouse, waves };
 const _startGame = startGame;
 function bindRestart(){ if (game && !game.restart) game.restart = RESTART[game.id] || toHub; }
-toHub(); P.weapon = null; setWeapon('rifle');
+COL_BASE = COL.length; toHub(); P.weapon = null; setWeapon('rifle');
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), T = clock.elapsedTime; bindRestart();
@@ -791,7 +1004,7 @@ renderer.setAnimationLoop(() => {
       if (h.isHand && J(h, 'index-finger-tip')) { const tip = J(h, 'index-finger-tip').getWorldPosition(V3()); let touched = null; for (const m of btnMeshes) { const lp = m.worldToLocal(tip.clone()), b = m.userData.btn; if (Math.abs(lp.x) < b.w / 2 && Math.abs(lp.y) < b.h / 2 && Math.abs(lp.z) < 0.03) touched = b; } if (touched && h.poke !== touched) clickBtn(touched, h); h.poke = touched; }
     }
     const rh = R();
-    if (rh && (mode === 'play' || mode === 'hub') && !menuOpen()) { const w = WEAPONS[P.weapon]; if (rh.trig && !rh.hover) { if (w.auto || !rh.semiLock) { fire(); rh.semiLock = true; } } else rh.semiLock = false; }
+    if (rh && (mode === 'play' || mode === 'hub')) { const w = WEAPONS[P.weapon]; if ((rh.trig || rh.selTrig) && !rh.hover) { if (w.auto || !rh.semiLock) { fire(); rh.semiLock = true; } } else rh.semiLock = false; }
     checkMagInsert(); updTeleport();
     // käe juhised
     const lh = L(); if (lh && !lh.held && (mode === 'play' || mode === 'hub')) { const hp = handPos(lh, V3()); const near = hp.distanceTo(bodyPoint(-0.2, -0.65, 0.05)) < 0.22 ? '🔋 Salv' : hp.distanceTo(bodyPoint(-0.1, -0.35, 0.18)) < 0.18 ? '💣 Granaat' : hp.distanceTo(bodyPoint(0.1, -0.35, 0.18)) < 0.18 ? '🌫️ Suits' : null; if (near && near !== lh.lastNear) pulse(lh, 0.2, 20); lh.lastNear = near; }
@@ -803,7 +1016,7 @@ renderer.setAnimationLoop(() => {
     game.t += dt; const line = game.tick ? game.tick(game, dt) : ''; updateEnemies(dt); drawHud(line);
     if (!P.dead) { P.regenT -= dt; if (P.regenT <= 0 && P.hp < P.maxHp) P.hp = Math.min(P.maxHp, P.hp + 25 * dt); }
   } else if (mode === 'hub') { updateEnemies(dt); }
-  updProps(dt); updTargets(dt); updParticles(dt); updTracers(dt);
+  updProps(dt); updTargets(dt); updAtmos(dt); if (mode === 'play') updStreaks(dt); updParticles(dt); updTracers(dt);
   hurtM.material.opacity = Math.max(0, hurtM.material.opacity - dt * 0.6 * (P.hp > 30 ? 1 : 0.3));
   for (const p of pops) if (p.p.mesh.visible) { p.t -= dt; p.p.mesh.position.y += dt * 0.4; camera.getWorldPosition(head); p.p.mesh.lookAt(head); p.p.mesh.material.opacity = clamp(p.t, 0, 1); if (p.t <= 0) p.p.mesh.visible = false; }
   if (msgP.mesh.visible) { msgT -= dt; msgP.mesh.material.opacity = clamp(msgT * 2, 0, 1); if (msgT <= 0) msgP.mesh.visible = false; }
@@ -815,7 +1028,7 @@ renderer.setAnimationLoop(() => {
   pMat.uniforms.uScale.value = renderer.xr.isPresenting ? 900 : renderer.domElement.height / 2 * camera.projectionMatrix.elements[5];
   renderer.render(scene, camera);
 });
-window.__el = { shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
+window.__el = { startMission, useStreak, shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
 </script>
 </body>
 </html>
