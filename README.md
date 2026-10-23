@@ -1,4 +1,4 @@
-[Uploading index (21).html…]()
+[Uploading index (22).html…]()
 <!doctype html>
 <html lang="et">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el2';
+window.GAME_VERSION = 'el3';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,9 +21,9 @@ window.GAME_VERSION = 'el2';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el2)</span><br>
-  Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = salv välja, B = vaheta relva, vasak külgnupp vöö juures = uus salv, rinnal = granaat, Y = paus.<br>
-  Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1–4</b> = relv, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>Esc</b> = menüü.
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el3)</span><br>
+  Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = laadi, B = vaheta relva. Võta asjad KEHALT külgnupuga: salv kõhult, granaat/suits paremalt rinnalt, 💉 süstal vasakult rinnalt (vii rinnale = ravi), püstol paremalt puusalt, põhirelv üle parema õla. Kõiguta käsi nagu jooksed = jookse! Y = paus.<br>
+  Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1</b> = põhirelv, <b>2</b> = püstol, <b>E</b> = võta ese, <b>F</b> = 💉 süstal, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>Esc</b> = menüü.
 </div>
 <script type="module">
 import * as THREE from 'three';
@@ -183,10 +183,10 @@ function castWorld(o, d, maxT){ let best = maxT, hit = null; for (const c of COL
 function los(a, b){ const d = tmpD.copy(b).sub(a), L = d.length(); d.divideScalar(L); return castWorld(a, d.clone(), L - 0.1).t >= L - 0.1 && !smokeBlocks(a, b); }
 
 /* ===================== AUDIO ===================== */
-let actx = null, master, sfx, rev, noiseBuf;
+let actx = null, master, sfx, rev, noiseBuf, muffle = null, dry = null;
 function audioInit(){
   if (actx) { if (actx.state === 'suspended' && mode !== 'pause') actx.resume(); return; }
-  actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = 0.9; const comp = actx.createDynamicsCompressor(); master.connect(comp); comp.connect(actx.destination);
+  actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = 0.9; const comp = actx.createDynamicsCompressor(); muffle = actx.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000; master.connect(muffle); muffle.connect(comp); comp.connect(actx.destination); dry = comp;
   sfx = actx.createGain(); sfx.connect(master);
   noiseBuf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   rev = actx.createConvolver(); const ir = actx.createBuffer(2, actx.sampleRate * 1.8, actx.sampleRate); for (let ch = 0; ch < 2; ch++) { const b = ir.getChannelData(ch); for (let i = 0; i < b.length; i++) b[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / b.length, 3); } rev.buffer = ir; const rg = actx.createGain(); rg.gain.value = 0.35; rev.connect(rg); rg.connect(master);
@@ -212,7 +212,14 @@ const S = {
   ok(){ if (!actx) return; const t = actx.currentTime; [523, 659, 784].forEach((f, i) => tn(t + i * 0.08, f, f, 0.2, 0.15, 'triangle', sfx)); },
   bad(){ if (!actx) return; const t = actx.currentTime; tn(t, 300, 150, 0.4, 0.2, 'square', sfx); },
   beep(f = 880){ if (!actx) return; tn(actx.currentTime, f, f, 0.12, 0.15, 'square', sfx); },
-  hiss(pos){ if (!actx) return; nz(actx.currentTime, 2.5, 2000, 0.3, 'highpass', out(pos)); }
+  hiss(pos){ if (!actx) return; nz(actx.currentTime, 2.5, 2000, 0.3, 'highpass', out(pos)); },
+  step(run, pos){ if (!actx) return; const t = actx.currentTime; nz(t, run ? 0.09 : 0.07, run ? 520 : 380, run ? 0.35 : 0.2, 'lowpass', pos ? out(pos) : sfx); nz(t + 0.02, 0.04, 2500, 0.05, 'bandpass', pos ? out(pos) : sfx); },
+  ring(k){ if (!actx) return; const t = actx.currentTime; tn(t, 3600, 3450, 2.5 * k + 0.6, 0.07 * k + 0.02, 'sine', dry || master); if (muffle) { muffle.frequency.cancelScheduledValues(t); muffle.frequency.setValueAtTime(450, t); muffle.frequency.exponentialRampToValueAtTime(20000, t + 2.5 * k + 0.8); } },
+  breath(){ if (!actx) return; const t = actx.currentTime; nz(t, 0.45, 800, 0.1, 'bandpass', sfx); nz(t + 0.6, 0.55, 550, 0.08, 'bandpass', sfx); },
+  stim(){ if (!actx) return; const t = actx.currentTime; nz(t, 0.25, 4000, 0.3, 'highpass', sfx); tn(t + 0.1, 300, 900, 0.5, 0.15, 'sine', sfx); [523, 784, 1046].forEach((f, i) => tn(t + 0.3 + i * 0.09, f, f, 0.2, 0.12, 'triangle', sfx)); },
+  whoosh(){ if (!actx) return; nz(actx.currentTime, 0.18, 1200, 0.25, 'bandpass', sfx); },
+  shell(){ if (!actx) return; const t = actx.currentTime; tn(t, 1500, 1300, 0.04, 0.2, 'square', sfx); nz(t + 0.03, 0.05, 1800, 0.3, 'bandpass', sfx); },
+  clink(pos){ if (!actx) return; tn(actx.currentTime, 2600 + Math.random() * 800, 2400, 0.08, 0.06, 'triangle', out(pos)); }
 };
 function say(txt){ try { if (!window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(txt); u.lang = 'et-EE'; u.rate = 1.1; u.volume = 0.8; speechSynthesis.speak(u); } catch (e) {} }
 
@@ -266,7 +273,7 @@ const objMark = new Panel(0.5, 0.25, 300); objMark.mesh.renderOrder = 58; scene.
 
 /* ===================== SALVESTUS, AUASTMED ===================== */
 const RANKS = ['Reamees', 'Kapral', 'Nooremseersant', 'Seersant', 'Vanemseersant', 'Veebel', 'Lipnik', 'Leitnant', 'Kapten', 'Major'];
-const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {} }, store('el_save') || {});
+const save = Object.assign({ xp: 0, enemy: 'soldier', diff: 1, reload: 'auto', move: 'smooth', best: {}, mis: {}, found: {}, att: {}, prim: 'rifle' }, store('el_save') || {});
 if (!save.v2) { save.v2 = true; save.reload = 'auto'; }
 const persist = () => store('el_save', save);
 const rankIdx = () => Math.min(RANKS.length - 1, Math.floor(Math.sqrt(save.xp / 150)));
@@ -278,21 +285,27 @@ const DIFF = [{ n: '🙂 Kerge', acc: 0.18, dmg: 7, react: 1.1 }, { n: '😐 Tav
 const WEAPONS = {
   rifle: { n: 'Automaat', auto: true, rate: 0.09, dmg: 34, spread: 0.012, mag: 30, recoil: 0.04, pellets: 1, rank: 0 },
   pistol: { n: 'Püstol', auto: false, rate: 0.14, dmg: 30, spread: 0.014, mag: 12, recoil: 0.06, pellets: 1, rank: 0 },
+  smg: { n: 'Püstolkuulipilduja', auto: true, rate: 0.065, dmg: 24, spread: 0.02, mag: 32, recoil: 0.025, pellets: 1, rank: 0, find: true },
+  lmg: { n: 'Kuulipilduja', auto: true, rate: 0.095, dmg: 36, spread: 0.022, mag: 80, recoil: 0.045, pellets: 1, rank: 0, find: true, reloadK: 1.6 },
   shotgun: { n: 'Haavlipüss', auto: false, rate: 0.8, dmg: 16, spread: 0.06, mag: 6, recoil: 0.14, pellets: 9, rank: 2 },
   sniper: { n: 'Snaipripüss', auto: false, rate: 1.2, dmg: 160, spread: 0.0005, mag: 5, recoil: 0.2, pellets: 1, rank: 3, scope: 6 }
 };
-const WORDER = ['rifle', 'pistol', 'shotgun', 'sniper'];
+const WORDER = ['rifle', 'pistol', 'smg', 'shotgun', 'lmg', 'sniper'];
+const PRIMS = WORDER.filter(k => k !== 'pistol');
+const canSight = k => ['rifle', 'smg', 'lmg', 'shotgun'].includes(k), canSupp = k => ['rifle', 'smg', 'pistol', 'sniper'].includes(k);
+const ATTN = { holo: '🔲 Holograafiline sihik', acog: '🔭 4x ACOG sihik', supp: '🔇 Summuti' };
 function buildGun(kind){
   const g = new THREE.Group(), add = (w, h, d, x, y, z, m = M.gun) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
   const cyl = (r, l, x, y, z, m = M.gun) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 10).rotateX(Math.PI / 2), m); c.position.set(x, y, z); g.add(c); return c; };
-  let muzzle, magwell, fore, sightY = 0.07;
+  let muzzle, magwell, fore, sightY = 0.07, slide = null, charge = null, pump = null, bolt = null; const att = {};
   if (kind === 'pistol') {
     add(0.028, 0.1, 0.034, 0, -0.035, 0.012, M.polymer).rotation.x = 0.18; add(0.03, 0.03, 0.17, 0, 0.012, -0.06, M.polymer);
-    add(0.032, 0.032, 0.19, 0, 0.042, -0.065, M.gunMetal); for (let i = 0; i < 6; i++) add(0.033, 0.026, 0.003, 0, 0.044, 0.01 + i * 0.006, M.polymer);
-    add(0.004, 0.012, 0.022, 0, -0.012, -0.03, M.gunMetal); add(0.006, 0.01, 0.008, 0, 0.063, -0.15, M.gunMetal); add(0.016, 0.009, 0.006, 0, 0.063, 0.02, M.gunMetal);
+    const n0 = g.children.length; add(0.032, 0.032, 0.19, 0, 0.042, -0.065, M.gunMetal); for (let i = 0; i < 6; i++) add(0.033, 0.026, 0.003, 0, 0.044, 0.01 + i * 0.006, M.polymer);
+    add(0.006, 0.01, 0.008, 0, 0.063, -0.15, M.gunMetal); add(0.016, 0.009, 0.006, 0, 0.063, 0.02, M.gunMetal); slide = new THREE.Group(); g.add(slide); for (const m of g.children.slice(n0, -1)) slide.add(m);
+    add(0.004, 0.012, 0.022, 0, -0.012, -0.03, M.gunMetal);
     cyl(0.006, 0.01, 0, 0.042, -0.162, M.dark); muzzle = V3(0, 0.042, -0.17); magwell = V3(0, -0.095, 0.02); fore = null; sightY = 0.068;
   } else {
-    const L = kind === 'sniper' ? 0.9 : kind === 'shotgun' ? 0.75 : 0.62, furn = kind === 'rifle' ? M.fde : kind === 'sniper' ? M.camo : M.polymer;
+    const L = kind === 'sniper' ? 0.9 : kind === 'shotgun' ? 0.75 : kind === 'lmg' ? 0.85 : kind === 'smg' ? 0.36 : 0.62, furn = kind === 'rifle' ? M.fde : kind === 'sniper' ? M.camo : kind === 'lmg' ? M.olive : M.polymer;
     // lukukast ja käepide
     add(0.052, 0.06, 0.34, 0, 0.035, -0.08, M.gunMetal); add(0.05, 0.03, 0.16, 0, -0.008, 0.0, M.gunMetal);
     add(0.034, 0.12, 0.045, 0, -0.06, 0.06, furn).rotation.x = 0.28; add(0.012, 0.04, 0.05, 0, -0.03, -0.02, M.gunMetal);
@@ -305,16 +318,29 @@ function buildGun(kind){
     add(0.05, 0.008, 0.33, 0, 0.068, -0.15, M.gunMetal); for (let i = 0; i < 11; i++) add(0.054, 0.006, 0.01, 0, 0.074, 0.0 - i * 0.03, M.gunMetal);
     // toru, leegisummuti
     cyl(kind === 'shotgun' ? 0.014 : 0.0095, L * 0.55, 0, 0.04, -0.5 - L * 0.12, M.gunMetal); cyl(0.016, 0.06, 0, 0.04, -0.5 - L * 0.4, M.dark);
-    if (kind === 'shotgun') { cyl(0.012, 0.3, 0, 0.012, -0.45, M.gunMetal); add(0.05, 0.05, 0.15, 0, 0.012, -0.42, furn); }
+    if (kind === 'shotgun') { cyl(0.012, 0.3, 0, 0.012, -0.45, M.gunMetal); pump = add(0.055, 0.055, 0.15, 0, 0.012, -0.42, furn); }
+    if (kind !== 'shotgun' && kind !== 'sniper') charge = add(0.05, 0.012, 0.025, 0, 0.066, 0.075, M.dark);
+    if (kind === 'sniper') { bolt = new THREE.Group(); bolt.position.set(0.028, 0.05, 0.03); g.add(bolt); const bh = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 8).rotateZ(Math.PI / 2), M.gunMetal); bh.position.x = 0.02; bolt.add(bh); const bk = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), M.dark); bk.position.x = 0.046; bolt.add(bk); }
+    if (kind === 'lmg') { add(0.08, 0.1, 0.11, 0.02, -0.07, -0.1, M.olive); for (const sx of [-1, 1]) { const bp = add(0.01, 0.2, 0.01, sx * 0.02, -0.06, -0.62, M.gunMetal); bp.rotation.set(0.5, 0, sx * 0.3); } add(0.02, 0.05, 0.02, -0.02, 0.06, -0.1, M.dark); }
     // salv (kumer)
-    if (kind !== 'shotgun') { for (let i = 0; i < 4; i++) { const sg = add(0.026, 0.045, 0.06, 0, -0.04 - i * 0.04, -0.1 - i * 0.008 * i, M.dark); sg.rotation.x = -0.1 - i * 0.1; } }
+    if (kind !== 'shotgun' && kind !== 'lmg') { for (let i = 0; i < (kind === 'smg' ? 3 : 4); i++) { const sg = add(0.026, 0.045, 0.06, 0, -0.04 - i * 0.04, -0.1 - i * 0.008 * i, M.dark); sg.rotation.x = -0.1 - i * 0.1; } }
     // sihikud
     if (kind === 'sniper') { cyl(0.025, 0.3, 0, 0.115, -0.12, M.gunMetal); cyl(0.031, 0.05, 0, 0.115, -0.28, M.gunMetal); cyl(0.031, 0.05, 0, 0.115, 0.04, M.gunMetal); add(0.016, 0.04, 0.02, 0, 0.085, -0.18, M.gunMetal); add(0.016, 0.04, 0.02, 0, 0.085, -0.04, M.gunMetal); cyl(0.008, 0.035, 0.035, 0.115, -0.12, M.gunMetal).rotation.set(0, 0, Math.PI / 2); for (const sx of [-1, 1]) { const bp = add(0.01, 0.16, 0.01, sx * 0.02, -0.04, -0.6, M.gunMetal); bp.rotation.set(0.5, 0, sx * 0.3); } }
-    else if (kind === 'rifle') { add(0.036, 0.034, 0.06, 0, 0.098, -0.05, M.gunMetal); add(0.032, 0.03, 0.004, 0, 0.1, -0.08, M.glassScope || (M.glassScope = std(0x335566, { transparent: true, opacity: 0.35, metalness: 0.9, roughness: 0.05 }))); const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 8), new THREE.MeshBasicMaterial({ color: 0xff2020, fog: false })); dot.position.set(0, 0.1, -0.078); g.add(dot); }
-    else { add(0.006, 0.02, 0.006, 0, 0.085, -0.6); add(0.02, 0.018, 0.01, 0, 0.085, 0.05); }
+    else if (kind === 'rifle') { const n0 = g.children.length; add(0.036, 0.034, 0.06, 0, 0.098, -0.05, M.gunMetal); add(0.032, 0.03, 0.004, 0, 0.1, -0.08, M.glassScope || (M.glassScope = std(0x335566, { transparent: true, opacity: 0.35, metalness: 0.9, roughness: 0.05 }))); const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 8), new THREE.MeshBasicMaterial({ color: 0xff2020, fog: false })); dot.position.set(0, 0.1, -0.078); g.add(dot); att.dot = new THREE.Group(); g.add(att.dot); for (const m of g.children.slice(n0, -1)) att.dot.add(m); }
+    else { const n0 = g.children.length; add(0.006, 0.02, 0.006, 0, 0.085, -0.5 - L * 0.2); add(0.02, 0.018, 0.01, 0, 0.085, 0.05); att.dot = new THREE.Group(); g.add(att.dot); for (const m of g.children.slice(n0, -1)) att.dot.add(m); }
     muzzle = V3(0, 0.04, -0.5 - L * 0.45); magwell = V3(0, -0.12, -0.1); fore = V3(0, 0.0, -0.37); sightY = kind === 'sniper' ? 0.115 : kind === 'rifle' ? 0.1 : 0.085;
   }
   const mz = new THREE.Object3D(); mz.position.copy(muzzle); g.add(mz);
+  // lisad (leitavad): holo, ACOG, summuti
+  let lensA = null;
+  if (canSight(kind)) {
+    const hg = new THREE.Group(); g.add(hg); att.holo = hg; hg.visible = false; const hb = (w, h, d, x, y, z, m = M.dark) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); hg.add(b); };
+    hb(0.04, 0.012, 0.07, 0, 0.081, -0.06); for (const x of [-0.021, 0.021]) hb(0.004, 0.045, 0.012, x, 0.105, -0.08); hb(0.046, 0.004, 0.012, 0, 0.128, -0.08); hb(0.04, 0.035, 0.002, 0, 0.105, -0.08, M.glassScope || (M.glassScope = std(0x335566, { transparent: true, opacity: 0.35, metalness: 0.9, roughness: 0.05 })));
+    const rr = new THREE.Mesh(new THREE.RingGeometry(0.006, 0.0075, 20), new THREE.MeshBasicMaterial({ color: 0xff3030, fog: false, side: THREE.DoubleSide })); rr.position.set(0, 0.105, -0.078); hg.add(rr); const rd = new THREE.Mesh(new THREE.CircleGeometry(0.0012, 6), rr.material); rd.position.copy(rr.position); hg.add(rd);
+    const ag = new THREE.Group(); g.add(ag); att.acog = ag; ag.visible = false; const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.022, 0.13, 12).rotateX(Math.PI / 2), M.gunMetal); tube.position.set(0, 0.106, -0.06); ag.add(tube); const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.03, 12).rotateX(Math.PI / 2), M.gunMetal); ob.position.set(0, 0.106, -0.13); ag.add(ob); const mt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.05), M.dark); mt.position.set(0, 0.082, -0.06); ag.add(mt);
+    lensA = new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), new THREE.MeshBasicMaterial({ map: scopeRT.texture, fog: false, toneMapped: false })); lensA.position.set(0, 0.106, 0.006); ag.add(lensA);
+  }
+  if (canSupp(kind)) { const sp = new THREE.Mesh(new THREE.CylinderGeometry(kind === 'pistol' ? 0.013 : 0.018, kind === 'pistol' ? 0.013 : 0.018, 0.16, 12).rotateX(Math.PI / 2), M.dark); sp.position.copy(muzzle).add(V3(0, 0, -0.08)); sp.visible = false; g.add(sp); att.supp = sp; }
   // salv relvas
   const mag = add(kind === 'pistol' ? 0.024 : 0.028, kind === 'pistol' ? 0.08 : 0.12, 0.05, magwell.x, magwell.y + (kind === 'pistol' ? 0.03 : 0.05), magwell.z, M.dark);
   // laskemoona loendur
@@ -322,13 +348,16 @@ function buildGun(kind){
   // snaipri sihik: renderdatakse tekstuuri
   let lens = null; if (kind === 'sniper') { lens = new THREE.Mesh(new THREE.CircleGeometry(0.026, 24), new THREE.MeshBasicMaterial({ map: scopeRT.texture, fog: false, toneMapped: false })); lens.position.set(0, 0.115, 0.052); g.add(lens); }
   const flashM = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.15, 8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); flashM.position.copy(muzzle).add(V3(0, 0, -0.07)); flashM.visible = false; g.add(flashM);
-  return { g, mz, magwell, fore, mag, ammoP, lens, flashM, sightY };
+  if (kind === 'smg') g.scale.setScalar(0.9);
+  return { g, mz, magwell, fore, mag, ammoP, lens, lensS: lens, lensA, flashM, sightY, baseSightY: sightY, muzzle: muzzle.clone(), slide, charge, pump, bolt, att, zoom: WEAPONS[kind].scope || 0 };
 }
 const scopeRT = new THREE.WebGLRenderTarget(384, 384);
 const laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff1a1a, fog: false })); laserDot.visible = false; scene.add(laserDot);
 const laserBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 1, 4).translate(0, 0.5, 0).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35, fog: false })); laserBeam.visible = false; scene.add(laserBeam);
 const scopeCam = new THREE.PerspectiveCamera(75 / 6, 1, 0.1, 600);
 const guns = {}; for (const k of WORDER) { const g = buildGun(k); g.g.visible = false; scene.add(g.g); guns[k] = Object.assign(g, { kind: k, def: WEAPONS[k], ammo: WEAPONS[k].mag, hasMag: true, chambered: true }); }
+function applyAtt(k){ const g = guns[k], a = save.att[k] || {}; if (g.att.dot) g.att.dot.visible = !a.sight; for (const s of ['holo', 'acog']) if (g.att[s]) g.att[s].visible = a.sight === s; if (g.att.supp) g.att.supp.visible = !!a.supp; g.mz.position.copy(g.muzzle).add(V3(0, 0, a.supp ? -0.16 : 0)); g.flashM.position.copy(g.mz.position).add(V3(0, 0, -0.07)); g.sightY = a.sight ? 0.106 : g.baseSightY; g.lens = g.def.scope ? g.lensS : a.sight === 'acog' ? g.lensA : null; g.zoom = g.def.scope || (a.sight === 'acog' ? 4 : 0); g.supp = !!a.supp; }
+for (const k of WORDER) applyAtt(k);
 // granaadid, salved (esemed)
 const props = [];
 function newProp(type, pos){
@@ -336,12 +365,14 @@ function newProp(type, pos){
   if (type === 'mag') { const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.13, 0.055), M.dark); m.castShadow = true; g.add(m); }
   if (type === 'frag') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 10), M.olive); m.scale.y = 1.2; g.add(m); const l = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.02), M.metal); l.position.set(0.02, 0.03, 0); g.add(l); }
   if (type === 'smoke') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.11, 12), std(0x9aa0a6)); g.add(m); }
+  if (type === 'shell') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.065, 8), M.red); m.rotation.x = Math.PI / 2; g.add(m); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0105, 0.015, 8), std(0xc9a227, { metalness: 0.8, roughness: 0.3 })); b.rotation.x = Math.PI / 2; b.position.z = 0.035; g.add(b); }
+  if (type === 'stim') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.12, 10), std(0xe8eef0, { roughness: 0.3 })); m.rotation.x = Math.PI / 2; g.add(m); const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.08, 10), new THREE.MeshBasicMaterial({ color: 0x40ff90 })); liq.rotation.x = Math.PI / 2; liq.position.z = 0.005; g.add(liq); const nd = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.04, 6), M.metal); nd.rotation.x = Math.PI / 2; nd.position.z = -0.08; g.add(nd); const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.01, 10), M.red); pl.rotation.x = Math.PI / 2; pl.position.z = 0.065; g.add(pl); }
   const p = { type, g, vel: V3(), held: null, fuse: type === 'frag' ? 3.2 : type === 'smoke' ? 1.5 : 0, live: false, rest: false, age: 0 }; props.push(p); return p;
 }
 function removeProp(p){ p.g.removeFromParent(); props.splice(props.indexOf(p), 1); }
 
 /* ===================== MÄNGIJA ===================== */
-const P = { hp: 100, maxHp: 100, regenT: 0, weapon: 'rifle', cool: 0, crouch: false, armor: 0, frags: 3, smokes: 2, mags: 99, dead: false, H: 1.65, reloadT: 0, ads: false, nvg: false };
+const P = { hp: 100, maxHp: 100, regenT: 0, weapon: 'rifle', cool: 0, crouch: false, armor: 0, frags: 3, smokes: 2, mags: 99, dead: false, H: 1.65, reloadT: 0, ads: false, nvg: false, stims: 2, downed: false, downT: 0, prim: save.prim || 'rifle', rl: null, swapT: 0, boltT: 0, pumpT: 0, slideK: 0, swing: 0, bodyYaw: 0, brT: 0, stepD: 0 };
 const handFactory = new XRHandModelFactory();
 const hands = [0, 1].map(i => {
   const ctrl = renderer.xr.getController(i), grip = renderer.xr.getControllerGrip(i), hand = renderer.xr.getHand(i);
@@ -366,7 +397,7 @@ function clickBtn(b, h){ if (!isShown(b.p.mesh) || b.lock) { if (b.lock) S.bad()
 const keys = {}; let yaw = 0, pitch = 0, mouseDown = false, rmb = false;
 addEventListener('keydown', e => { keys[e.code] = true; audioInit();
   if (e.code === 'Escape') { if (mode === 'play') pauseGame(); else if (mode === 'pause') resumeGame(); }
-  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code >= 'Digit1' && e.code <= 'Digit4') setWeapon(WORDER[+e.code.slice(5) - 1]); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyQ') useStreak(); if (e.code === 'KeyE') interact(); }
+  if (mode === 'play' || mode === 'hub') { if (e.code === 'KeyR') startReload(); if (e.code === 'Digit1') setWeapon(P.prim); if (e.code === 'Digit2') setWeapon('pistol'); if (e.code === 'KeyF') deskStim(); if (e.code === 'KeyG') deskThrow('frag'); if (e.code === 'KeyH') deskThrow('smoke'); if (e.code === 'KeyN') toggleNvg(); if (e.code === 'KeyQ') useStreak(); if (e.code === 'KeyE') interact(); }
 });
 addEventListener('keyup', e => keys[e.code] = false);
 const mouseNDC = new THREE.Vector2();
@@ -377,20 +408,24 @@ addEventListener('mousemove', e => { mouseNDC.set(e.clientX / innerWidth * 2 - 1
 let deskHover = null;
 const menuOpen = () => menuG.visible || endG.visible || pauseG.visible || armG.visible || (typeof wireG !== 'undefined' && wireG.visible) || buyMenu.visible;
 
-function setWeapon(k){ if (!k || P.weapon === k || WEAPONS[k].rank > rankIdx() && !(mission && mission.weapons && mission.weapons.includes(k))) { if (k && WEAPONS[k].rank > rankIdx()) msg(`🔒 ${WEAPONS[k].n} avaneb auastmel ${RANKS[WEAPONS[k].rank]}`, '#ff8a80', 2); return; } P.weapon = k; P.reloadT = 0; S.rack(); for (const w of WORDER) guns[w].g.visible = false; guns[k].g.visible = true; drawAmmo(guns[k]); }
-function cycleWeapon(){ const av = WORDER.filter(w => WEAPONS[w].rank <= rankIdx() || mission && mission.weapons && mission.weapons.includes(w)); setWeapon(av[(av.indexOf(P.weapon) + 1) % av.length]); }
+const avail = k => k === 'pistol' || (WEAPONS[k].find ? !!save.found[k] : WEAPONS[k].rank <= rankIdx()) || !!(mission && mission.weapons && mission.weapons.includes(k));
+function setWeapon(k){ if (!k || P.weapon === k) return; if (!avail(k)) { msg(WEAPONS[k].find ? `🔍 ${WEAPONS[k].n} – leia see relv maailmast!` : `🔒 ${WEAPONS[k].n} avaneb auastmel ${RANKS[WEAPONS[k].rank]}`, '#ff8a80', 2); return; } if (k !== 'pistol') { P.prim = k; save.prim = k; persist(); } const first = P.weapon == null; P.weapon = k; cancelReload(); P.swapT = first ? 0 : 0.4; P.boltT = P.pumpT = 0; S.rack(); for (const w of WORDER) guns[w].g.visible = false; guns[k].g.visible = true; drawAmmo(guns[k]); }
+function cycleWeapon(){ setWeapon(P.weapon === 'pistol' ? (avail(P.prim) ? P.prim : 'rifle') : 'pistol'); }
 function drawAmmo(g){ g.ammoP.draw((c, W, H) => { c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(0, 0, W, H); txt(c, g.hasMag ? `${g.ammo}/${g.def.mag}` : '— —', W / 2, H / 2, H * 0.7, g.ammo === 0 ? '#ff5252' : '#9cff57', 'bold'); }); }
-function startReload(){ const g = guns[P.weapon]; if (P.reloadT > 0 || g.ammo === g.def.mag && g.hasMag) return; P.reloadT = g.kind === 'shotgun' ? 2.2 : 1.6; S.mag(); }
-function ejectMag(){ const g = guns[P.weapon]; if (!g.hasMag) return; g.hasMag = false; g.mag.visible = false; const p = newProp('mag', g.g.localToWorld(g.magwell.clone())); p.live = true; p.vel.set(0, -1, 0); p.empty = true; g.ammo = 0; drawAmmo(g); S.mag(); }
-function insertMag(){ const g = guns[P.weapon]; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); setTimeout(() => S.rack(), 200); }
+function startReload(){ const g = guns[P.weapon]; if (!g || P.rl || P.dead || P.downed || (g.ammo === g.def.mag && g.hasMag)) return; const wasEmpty = g.ammo === 0 || !g.hasMag;
+  if (g.kind === 'shotgun') P.rl = { k: 'shell', t: 0, n: 0, wasEmpty }; else P.rl = { k: 'mag', t: 0, dur: (g.kind === 'pistol' ? 1.35 : g.kind === 'sniper' ? 2.1 : 1.8) * (g.def.reloadK || 1), wasEmpty, ej: false, ins: false, rk: false }; }
+function cancelReload(){ P.rl = null; if (typeof ghost !== 'undefined') ghost.visible = ghostS.visible = false; }
+function ejectMag(keep){ const g = guns[P.weapon]; if (!g.hasMag || g.kind === 'shotgun') return; g.hasMag = false; g.mag.visible = false; const p = newProp('mag', g.g.localToWorld(g.magwell.clone())); p.live = true; p.vel.set(rand(-0.3, 0.3), -1, rand(-0.3, 0.3)); p.empty = true; if (!keep) g.ammo = 0; drawAmmo(g); S.mag(); }
+function insertMag(manual){ const g = guns[P.weapon]; const was = g.ammo === 0; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); if (manual && was && !P.rl) P.rl = { k: 'rack', t: 0 }; }
 function toggleNvg(){ if (!mission || !mission.night) return; P.nvg = !P.nvg; P.nvgSeen = false; nvgM.visible = P.nvg; S.beep(P.nvg ? 1200 : 600); applyLight(); }
 
 /* ===================== TULISTAMINE ===================== */
 const shootables = [];  // { test(o,d,maxT)->{t,part}, hit(point,part,dmg,dir) }
 function fire(){
   const g = guns[P.weapon], d = g.def;
-  if (P.cool > 0 || P.reloadT > 0 || P.dead) return;
-  if (g.ammo <= 0 || !g.hasMag) { S.empty(); P.cool = 0.25; if (save.reload === 'auto' || !renderer.xr.isPresenting) startReload(); return; }
+  if (P.rl) { if (P.rl.k === 'shell' && g.ammo > 0 && P.rl.t > 0.25) cancelReload(); else return; }
+  if (P.cool > 0 || P.dead || P.downed || P.swapT > 0.12 || P.boltT > 0 || P.pumpT > 0) return;
+  if (g.ammo <= 0 || !g.hasMag) { S.empty(); P.cool = 0.25; if (save.reload === 'manual' && renderer.xr.isPresenting && g.hasMag && !P.emptyHint) { P.emptyHint = true; msg('🔄 Tühi! A = salv välja, võta uus salv kõhult', GOLD, 2.5); } if (save.reload === 'auto' || !renderer.xr.isPresenting) startReload(); return; }
   g.ammo--; P.cool = d.rate; drawAmmo(g);
   const o = g.mz.getWorldPosition(V3()), q = g.g.getWorldQuaternion(new THREE.Quaternion()), base = V3(0, 0, -1).applyQuaternion(q);
   if (!renderer.xr.isPresenting) { camera.getWorldDirection(base); camera.getWorldPosition(tmpV); o.copy(tmpV).addScaledVector(base, 0.3); }
@@ -399,13 +434,14 @@ function fire(){
     const sp = d.spread * (twoHand ? 0.4 : 1) * (P.crouch ? 0.8 : 1), dir = base.clone().add(V3(rand(-sp, sp), rand(-sp, sp), rand(-sp, sp))).normalize();
     shootRay(o, dir, d.dmg, k === 0);
   }
-  S.shot(P.weapon, null, false); flash.position.copy(o); flash.intensity = 4; g.flashM.visible = true; g.flashM.rotation.z = rand(0, 6);
+  S.shot(P.weapon, null, g.supp); if (!g.supp) { flash.position.copy(o); flash.intensity = 4; g.flashM.visible = true; g.flashM.rotation.z = rand(0, 6); }
+  if (g.kind === 'sniper') P.boltT = 0.8; else if (g.kind === 'shotgun') P.pumpT = 0.5; else { P.slideK = 1; if (g.kind !== 'pistol') emit(g.g.localToWorld(V3(0.03, 0.05, -0.08)), V3(1.2, 1.4, 0.3).applyQuaternion(q), 0xd4a74a, 0.012, 0.6, -9); }
   setTimeout(() => { g.flashM.visible = false; flash.intensity = 0; }, 45);
-  emit(g.g.localToWorld(V3(0.03, 0.05, -0.08)), V3(1.2, 1.4, 0.3).applyQuaternion(q), 0xd4a74a, 0.012, 0.6, -9);
+  if (g.kind === 'pistol') emit(g.g.localToWorld(V3(0.03, 0.05, -0.04)), V3(1.2, 1.4, 0.3).applyQuaternion(q), 0xd4a74a, 0.01, 0.6, -9);
   for (let i = 0; i < 3; i++) emit(o, base.clone().multiplyScalar(rand(1, 2)), 0xaaaaaa, 0.05, 0.5, 0.3, 0.3);
   // tagasilöök
   if (renderer.xr.isPresenting) { P.kick = d.recoil; const h = R(); pulse(h, 0.6 + d.recoil * 2, 40); if (P.twoHand) pulse(L(), 0.5, 40); } else { pitch += d.recoil * 0.6; yaw += rand(-0.01, 0.01); }
-  alertEnemies(o, P.weapon === 'pistol' ? 25 : 45);
+  alertEnemies(o, g.supp ? 10 : P.weapon === 'pistol' ? 25 : 45);
 }
 function shootRay(o, dir, dmg, trace){
   let best = 300, sh = null, part = null;
@@ -422,12 +458,12 @@ function raySphere(o, d, c, r){ const oc = tmpV.copy(o).sub(c), b = oc.dot(d), c
 /* ===================== VASTASED ===================== */
 const enemies = [];
 function makeEnemyMesh(kind){
-  const g = new THREE.Group(); scene.add(g);
+  const g = new THREE.Group(); scene.add(g); const legs = [];
   const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
   if (kind === 'robot') {
     const met = std(0x8fa3b3, { metalness: 0.7, roughness: 0.35 }), eye = new THREE.MeshBasicMaterial({ color: 0xff3030 });
     add(new THREE.BoxGeometry(0.42, 0.55, 0.3), met, 0, 1.15, 0); add(new THREE.BoxGeometry(0.3, 0.26, 0.28), met, 0, 1.6, 0); add(new THREE.BoxGeometry(0.22, 0.05, 0.02), eye, 0, 1.62, -0.145);
-    for (const x of [-0.12, 0.12]) add(new THREE.BoxGeometry(0.14, 0.85, 0.16), M.dark, x, 0.43, 0); for (const x of [-0.29, 0.29]) add(new THREE.BoxGeometry(0.11, 0.5, 0.12), met, x, 1.12, -0.05);
+    for (const x of [-0.12, 0.12]) { const lg = new THREE.Group(); lg.position.set(x, 0.85, 0); g.add(lg); const o = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.85, 0.16), M.dark); o.position.y = -0.42; o.castShadow = true; lg.add(o); legs.push({ lg, kn: null }); } for (const x of [-0.29, 0.29]) add(new THREE.BoxGeometry(0.11, 0.5, 0.12), met, x, 1.12, -0.05);
   } else {
     const uni = kind === 'paint' ? std(pick([0xd84315, 0x6a1b9a, 0x1565c0])) : kind === 'ally' ? std(0x3d5a80) : M.camo, vest = std(kind === 'paint' ? 0x222222 : kind === 'ally' ? 0x2b3a50 : 0x3b4030, { roughness: 0.9 }), dark = std(0x1d1d1b), skinC = std(pick([0xd2a27a, 0xb9855e, 0x8d5c3e]));
     add(new THREE.CapsuleGeometry(0.18, 0.4, 6, 12), uni, 0, 1.12, 0).scale.set(1.1, 1, 0.8);
@@ -439,17 +475,18 @@ function makeEnemyMesh(kind){
     add(new THREE.SphereGeometry(0.135, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), kind === 'paint' ? std(0x111111) : kind === 'ally' ? std(0x3a4a2a) : std(0x4d5236, { roughness: 0.8 }), 0, 1.63, 0).scale.set(1, 0.9, 1.08);
     if (kind === 'paint') add(new THREE.BoxGeometry(0.2, 0.08, 0.04), std(0x222222, { metalness: 0.5, roughness: 0.2 }), 0, 1.6, -0.12);
     else add(new THREE.BoxGeometry(0.17, 0.045, 0.03), std(0x111111, { metalness: 0.8, roughness: 0.2 }), 0, 1.71, -0.11);
-    for (const x of [-0.11, 0.11]) { add(new THREE.CapsuleGeometry(0.075, 0.32, 4, 8), uni, x, 0.62, 0); add(new THREE.CapsuleGeometry(0.065, 0.3, 4, 8), uni, x, 0.27, 0.02); add(new THREE.BoxGeometry(0.1, 0.1, 0.08), dark, x, 0.45, -0.07); add(new THREE.BoxGeometry(0.11, 0.09, 0.22), dark, x, 0.05, -0.04); }
+    for (const x of [-0.11, 0.11]) { const lg = new THREE.Group(); lg.position.set(x, 0.82, 0); g.add(lg); const kn = new THREE.Group(); kn.position.set(0, -0.4, 0); lg.add(kn); const sub = (geo, m, par, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(0, y, z); o.castShadow = true; par.add(o); };
+      sub(new THREE.CapsuleGeometry(0.075, 0.32, 4, 8), uni, lg, -0.2, 0); sub(new THREE.CapsuleGeometry(0.065, 0.3, 4, 8), uni, kn, -0.15, 0.02); sub(new THREE.BoxGeometry(0.1, 0.1, 0.08), dark, kn, 0.03, -0.07); sub(new THREE.BoxGeometry(0.11, 0.09, 0.22), dark, kn, -0.37, -0.04); legs.push({ lg, kn }); }
     add(new THREE.CapsuleGeometry(0.055, 0.22, 4, 8), uni, -0.24, 1.22, -0.12).rotation.set(-1.1, 0, -0.3); add(new THREE.CapsuleGeometry(0.05, 0.22, 4, 8), uni, -0.12, 1.2, -0.32).rotation.set(-1.45, 0, 0.6);
     add(new THREE.CapsuleGeometry(0.055, 0.22, 4, 8), uni, 0.24, 1.18, -0.06).rotation.set(-0.7, 0, 0.3); add(new THREE.CapsuleGeometry(0.05, 0.2, 4, 8), uni, 0.12, 1.2, -0.2).rotation.set(-1.3, 0, -0.5);
   }
   const gun = new THREE.Group(); gun.position.set(0.05, 1.25, -0.35); g.add(gun); { const gm = kind === 'paint' ? std(0x33cc33) : M.gunMetal; const a = (w, h, d, x, y, z, m = gm) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; gun.add(b); }; a(0.045, 0.06, 0.4, 0, 0, 0); a(0.04, 0.05, 0.2, 0, -0.01, 0.27, kind === 'paint' ? gm : M.fde); a(0.025, 0.1, 0.05, 0, -0.07, 0.03, M.dark); a(0.012, 0.012, 0.25, 0, 0.01, -0.3); }
   const mz = new THREE.Object3D(); mz.position.set(0.05, 1.26, -0.8); g.add(mz);
-  return { g, mz };
+  return { g, mz, gun, legs };
 }
 function spawnEnemy(x, z, opts = {}){
   const kind = save.enemy, m = makeEnemyMesh(kind), y = opts.y || 0;
-  const e = { m, pos: V3(x, y, z), hp: kind === 'robot' ? 120 : 100, state: opts.alert ? 'engage' : 'idle', alert: !!opts.alert, cover: null, cool: rand(0.5, 2), burst: 0, peek: 0, t: rand(0, 5), dead: false, deadT: 0, yaw: rand(0, 6), static: !!opts.static, patrol: opts.patrol || null, pi: 0, sightT: 0, kind, goal: null, hostage: false };
+  const e = { m, pos: V3(x, y, z), hp: kind === 'robot' ? 120 : 100, state: opts.alert ? 'engage' : 'idle', alert: !!opts.alert, cover: null, cool: rand(0.5, 2), burst: 0, peek: 0, t: rand(0, 5), dead: false, deadT: 0, yaw: rand(0, 6), static: !!opts.static, patrol: opts.patrol || null, pi: 0, sightT: 0, kind, goal: null, hostage: false, ammo: 30, reloadT: 0, nades: Math.random() < 0.55 ? 1 : 0, nadeT: rand(8, 16), ph: 0, deathType: Math.floor(rand(0, 3)), throwT: 0 };
   m.g.position.copy(e.pos);
   e.sh = { test: (o, d, maxT) => { if (e.dead) return null; const base = e.pos, cr = e.crouchK || 0; const hc = V3(base.x, base.y + 1.6 - cr * 0.5, base.z); const th = raySphere(o, d, hc, 0.15); let tb = Infinity; for (const yy of [1.2, 0.8, 0.4]) tb = Math.min(tb, raySphere(o, d, V3(base.x, base.y + yy - cr * (yy > 0.6 ? 0.4 : 0), base.z), 0.24)); if (th < tb && th < maxT) return { t: th, part: 'head' }; if (tb < maxT) return { t: tb, part: 'body' }; return null; },
     hit: (p, part, dmg, dir) => damageEnemy(e, part === 'head' ? dmg * 3 : dmg, p, dir, part) };
@@ -474,7 +511,7 @@ function killEnemy(e, dir, part){
 function alertEnemies(p, r){ for (const e of enemies) if (!e.dead && !e.alert && e.pos.distanceTo(p) < r) { e.alert = true; e.state = 'engage'; e.cool = DIFF[save.diff].react + rand(0, 0.5); } }
 function moveEnemy(e, gx, gz, sp, dt){
   const dx = gx - e.pos.x, dz = gz - e.pos.z, d = Math.hypot(dx, dz); if (d < 0.15) return true;
-  let a = Math.atan2(dx, dz); const step = Math.min(d, sp * dt);
+  let a = Math.atan2(dx, dz); const step = Math.min(d, sp * dt); e.lastSp = sp;
   for (const off of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) { const nx = e.pos.x + Math.sin(a + off) * step, nzv = e.pos.z + Math.cos(a + off) * step; if (!blockedAt(nx, nzv, 0.3, e.pos.y + 0.3, e.pos.y + 1.6)) { e.pos.x = nx; e.pos.z = nzv; e.yaw = a + off + Math.PI; return false; } }
   return false;
 }
@@ -483,16 +520,20 @@ function updateEnemies(dt){
   const ph = playerHead(V3()), D = DIFF[save.diff];
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], g = e.m.g; e.t += dt;
-    if (e.dead) { e.deadT += dt; const k = Math.min(1, e.deadT * 2.5); g.rotation.set(0, e.yaw, 0); g.rotateOnWorldAxis(V3(Math.cos(e.fallDir), 0, -Math.sin(e.fallDir)), -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.15, e.pos.z); if (e.deadT > 12) { g.removeFromParent(); enemies.splice(i, 1); } continue; }
+    if (e.dead) { e.deadT += dt; const k = Math.min(1, e.deadT * 2.5), ax = V3(Math.cos(e.fallDir), 0, -Math.sin(e.fallDir));
+      if (e.deathType === 1) { const k1 = Math.min(1, e.deadT * 4), k2 = clamp((e.deadT - 0.25) * 2.5, 0, 1); g.rotation.set(0, e.yaw, 0); g.scale.y = 1 - 0.35 * k1; g.rotateOnWorldAxis(ax, k2 * Math.PI / 2); g.position.set(e.pos.x, e.pos.y, e.pos.z); for (const l of e.m.legs) { l.lg.rotation.x = 0.9 * k1; if (l.kn) l.kn.rotation.x = -1.6 * k1; } }
+      else if (e.deathType === 2) { g.rotation.set(0, e.yaw + k * 1.6, 0); g.rotateOnWorldAxis(ax, -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.1, e.pos.z); }
+      else { g.rotation.set(0, e.yaw, 0); g.rotateOnWorldAxis(ax, -k * Math.PI / 2); g.position.set(e.pos.x, e.pos.y + Math.sin(k * Math.PI) * 0.15, e.pos.z); }
+      if (e.deadT > 12) { g.removeFromParent(); enemies.splice(i, 1); } continue; }
     const eye = V3(e.pos.x, e.pos.y + 1.55 - (e.crouchK || 0) * 0.5, e.pos.z), dist = eye.distanceTo(ph);
     const facing = Math.cos(Math.atan2(ph.x - e.pos.x, ph.z - e.pos.z) - (e.yaw + Math.PI)) > 0.2;
     const vis = mission && mission.night && !P.nvgSeen && !e.alert ? 16 : 70;
-    const sees = dist < vis && (e.alert || facing && dist < Math.min(35, vis)) && !P.dead && !(game && game.noTargetPlayer) && los(eye, ph);
+    const sees = !P.downed && dist < vis && (e.alert || facing && dist < Math.min(35, vis)) && !P.dead && !(game && game.noTargetPlayer) && los(eye, ph);
     if (sees) { e.sightT += dt; if (!e.alert && e.sightT > D.react) { e.alert = true; e.state = 'engage'; e.cool = D.react; } e.lastSeen = ph.clone(); } else e.sightT = 0;
     e.flinch = Math.max(0, (e.flinch || 0) - dt);
     if (!e.alert) { // patrull
       if (e.patrol) { const wp = e.patrol[e.pi]; if (moveEnemy(e, wp[0], wp[1], 1.2, dt)) e.pi = (e.pi + 1) % e.patrol.length; }
-      g.position.copy(e.pos).setY(e.pos.y + Math.abs(Math.sin(e.t * 6)) * 0.03 * (e.patrol ? 1 : 0)); g.rotation.set(0, e.yaw, 0); continue;
+      g.position.copy(e.pos).setY(e.pos.y + Math.abs(Math.sin(e.t * 6)) * 0.03 * (e.patrol ? 1 : 0)); g.rotation.set(0, e.yaw, 0); animLegs(e, !!e.patrol, dt); continue;
     }
     // vali vari
     if (!e.static && (!e.cover || e.coverT <= 0)) {
@@ -502,36 +543,42 @@ function updateEnemies(dt){
     }
     e.coverT -= dt;
     let moving = false;
-    if (e.cover && !e.static) { moving = !moveEnemy(e, e.cover.x, e.cover.z, e.flinch > 0 ? 1.5 : 3.2, dt); }
+    const nade = props.find(p => p.type === 'frag' && p.live && !p.held && p.g.position.distanceTo(e.pos) < 4.5);
+    if (nade && !e.static) { const aw = e.pos.clone().sub(nade.g.position).setY(0).normalize(); moveEnemy(e, e.pos.x + aw.x * 3, e.pos.z + aw.z * 3, 4, dt); moving = true; e.cover = null; e.crouchK = 0; }
+    else if (e.cover && !e.static) { moving = !moveEnemy(e, e.cover.x, e.cover.z, e.flinch > 0 ? 1.5 : 3.2, dt); }
     else if (!e.static && !sees && e.lastSeen) { moving = !moveEnemy(e, e.lastSeen.x, e.lastSeen.z, 2.5, dt); }
     // liitlased / veokid sihtmärgiks
     let tgtP = ph, ally = null;
-    if (game && game.allies && (!sees || Math.random() < 0.02 || e.allyLock)) { let bd = 60; for (const a of game.allies) { if (a.dead) continue; const ap = a.pos.clone().add(V3(0, a.h || 1.3, 0)), d = ap.distanceTo(eye); if (d < bd && los(eye, ap)) { bd = d; ally = a; tgtP = ap; } } if (ally && !e.alert) { e.alert = true; e.state = 'engage'; } e.allyLock = !!ally && !sees; }
+    if (game && game.allies && (!sees || Math.random() < 0.02 || e.allyLock)) { let bd = 60; for (const a of game.allies) { if (a.dead || a.downed) continue; const ap = a.pos.clone().add(V3(0, a.h || 1.3, 0)), d = ap.distanceTo(eye); if (d < bd && los(eye, ap)) { bd = d; ally = a; tgtP = ap; } } if (ally && !e.alert) { e.alert = true; e.state = 'engage'; } e.allyLock = !!ally && !sees; }
     // piilu ja tulista
     const atCover = e.cover && !moving;
     if (atCover && e.cover.low) { e.peek -= dt; if (e.peek < -2.2) e.peek = rand(1.5, 2.8); e.crouchK = e.peek > 0 ? 0 : 1; } else e.crouchK = 0;
     const face = Math.atan2(tgtP.x - e.pos.x, tgtP.z - e.pos.z) + Math.PI; e.yaw += Math.atan2(Math.sin(face - e.yaw), Math.cos(face - e.yaw)) * Math.min(1, dt * 6);
     e.cool -= dt;
-    if ((sees || ally) && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ally ? tgtP : ph, ally ? eye.distanceTo(tgtP) : dist, moving, ally); }
-    g.position.copy(e.pos); g.position.y += moving ? Math.abs(Math.sin(e.t * 9)) * 0.04 : 0; g.rotation.set(0, e.yaw, 0);
+    e.reloadT = Math.max(0, e.reloadT - dt); e.throwT = Math.max(0, e.throwT - dt); e.nadeT -= dt;
+    if (e.nades > 0 && e.nadeT <= 0 && !e.reloadT && !ally && (e.lastSeen || sees) && !P.downed && game) { const tg = (e.lastSeen || ph).clone(); const d2 = Math.hypot(tg.x - e.pos.x, tg.z - e.pos.z); if (d2 > 7 && d2 < 24 && (!sees || Math.random() < 0.35)) enemyNade(e, tg); else e.nadeT = rand(3, 7); }
+    if (e.reloadT > 0) { e.m.gun.rotation.set(0.5 * Math.sin(Math.min(1, e.reloadT / 2.4) * Math.PI), 0, 0.7 * Math.sin(Math.min(1, e.reloadT / 2.4) * Math.PI)); } else if (e.throwT > 0) e.m.gun.rotation.set(-0.8 * Math.sin(e.throwT / 0.6 * Math.PI), 0, 0); else e.m.gun.rotation.set(0, 0, 0);
+    if ((sees || ally) && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0 && !e.reloadT && !e.throwT) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ally ? tgtP : ph, ally ? eye.distanceTo(tgtP) : dist, moving, ally); }
+    const run = moving && (e.lastSp || 0) > 2; g.position.copy(e.pos); g.position.y += moving ? Math.abs(Math.sin(e.ph * 2)) * (run ? 0.05 : 0.025) : 0; g.rotation.set(run ? -0.14 : 0, e.yaw, 0, 'YXZ'); animLegs(e, moving, dt, run);
     g.scale.y = 1 - (e.crouchK || 0) * 0.35;
   }
 }
 function enemyShoot(e, ph, dist, moving, ally){
   const D = DIFF[save.diff], mz = e.m.mz.getWorldPosition(V3());
-  if (ally) { const hitA = Math.random() < 0.35 * clamp(1.4 - dist / 40, 0.3, 1.2); S.enemyShot(mz); tracer(mz, ph.clone().add(hitA ? V3() : V3(rand(-1, 1), rand(-0.5, 0.5), rand(-1, 1))), 0xffe08a); if (hitA) ally.hurt(D.dmg * 0.8); return; }
+  if (ally) { e.ammo--; if (e.ammo <= 0) enemyReload(e); const hitA = Math.random() < 0.35 * clamp(1.4 - dist / 40, 0.3, 1.2); S.enemyShot(mz); tracer(mz, ph.clone().add(hitA ? V3() : V3(rand(-1, 1), rand(-0.5, 0.5), rand(-1, 1))), 0xffe08a); if (hitA) ally.hurt(D.dmg * 0.8); return; }
   let p = D.acc * clamp(1.4 - dist / 40, 0.25, 1.2) * (P.crouch ? 0.6 : 1) * (moving ? 0.6 : 1) * (P.speed > 1 ? 0.7 : 1);
   const hit = Math.random() < p, tgt = ph.clone().add(hit ? V3(rand(-0.1, 0.1), -0.2, rand(-0.1, 0.1)) : V3(rand(-1.2, 1.2), rand(-0.8, 0.8), rand(-1.2, 1.2)));
+  e.ammo--; if (e.ammo <= 0) enemyReload(e);
   if (save.enemy === 'robot') S.laser(mz); else if (save.enemy === 'paint') S.paint(mz); else S.enemyShot(mz);
   tracer(mz, tgt, save.enemy === 'robot' ? 0xff3030 : save.enemy === 'paint' ? 0xff2bd6 : 0xffe08a);
   emit(mz, V3(), 0xffd27a, 0.08, 0.05);
   if (hit) hurtPlayer(D.dmg * rand(0.8, 1.2), mz); else if (tgt.distanceTo(ph) < 1.2) S.whiz(tgt);
 }
 function hurtPlayer(d, from){
-  if (P.dead || (game && game.god)) return; if (P.armor > 0) { const a = Math.min(P.armor, d * 0.6); P.armor -= a; d -= a; }
+  if (P.dead || P.downed || (game && game.god)) return; if (from) dirHit(from, 0xff2020); if (P.armor > 0) { const a = Math.min(P.armor, d * 0.6); P.armor -= a; d -= a; }
   P.hp -= d; P.regenT = 4; hurtM.material.opacity = Math.min(0.55, hurtM.material.opacity + 0.25); S.hurt(); for (const h of hands) pulse(h, 0.8, 120);
   if (save.enemy === 'paint') { hurtM.material.color.set(pick([0xff2bd6, 0x7cff4f, 0x00e5ff])); } else hurtM.material.color.set(0x880000);
-  if (P.hp <= 0) { P.hp = 0; P.dead = true; endGame(false, save.enemy === 'paint' ? '🎨 Sind värviti üle!' : '❌ Sind tabati'); }
+  if (P.hp <= 0) { P.hp = 0; if (P.stims > 0 && mode === 'play') goDown(); else { P.dead = true; endGame(false, save.enemy === 'paint' ? '🎨 Sind värviti üle!' : '❌ Sind tabati'); } }
 }
 // hüpikud
 const pops = Array.from({ length: 8 }, () => { const p = new Panel(0.7, 0.18, 300); p.mesh.renderOrder = 57; p.mesh.visible = false; scene.add(p.mesh); return { p, t: 0 }; }); let popI = 0;
@@ -562,8 +609,8 @@ function updTargets(dt){ for (const t of targets) { const goal = t.up ? 1 : 0; t
 let mode = 'hub', game = null, mission = null;
 function clearEnemies(){ clearMission(); for (const e of enemies) e.m.g.removeFromParent(); enemies.length = 0; for (let i = shootables.length - 1; i >= 0; i--) if (!targets.some(t => t.sh === shootables[i])) shootables.splice(i, 1); }
 function resetPlayer(x, z, rotY = 0, y = 0){
-  P.hp = P.maxHp = 100; P.armor = 0; P.dead = false; P.regenT = 0; P.frags = 3; P.smokes = 2; P.nvg = false; nvgM.visible = false; hurtM.material.opacity = 0;
-  for (const k of WORDER) { const g = guns[k]; g.ammo = g.def.mag; g.hasMag = true; g.mag.visible = true; drawAmmo(g); }
+  P.hp = P.maxHp = 100; P.armor = 0; P.dead = false; P.regenT = 0; P.frags = 3; P.smokes = 2; P.stims = 2; P.downed = false; P.rl = null; P.boltT = P.pumpT = 0; P.nvg = false; nvgM.visible = false; hurtM.material.opacity = 0; for (const h of hands) if (h.held) { const p = h.held; h.held = null; p.held = null; }
+  for (const k of WORDER) { const g = guns[k]; g.ammo = g.def.mag; g.hasMag = true; g.mag.visible = true; drawAmmo(g); } if (typeof ghost !== 'undefined') ghost.visible = ghostS.visible = false;
   for (const p of [...props]) removeProp(p); for (const s of smokes) s.parts = 0; smokes.length = 0;
   camera.getWorldPosition(head); rig.position.set(x - (renderer.xr.isPresenting ? head.x - rig.position.x : 0), y, z - (renderer.xr.isPresenting ? head.z - rig.position.z : 0));
   if (renderer.xr.isPresenting) { rig.rotation.y = rotY; } else { yaw = rotY; pitch = 0; rig.rotation.y = 0; }
@@ -573,7 +620,7 @@ function startGame(cfg){
   audioInit(); hideMenus(); clearEnemies(); clearTargets(); mission = cfg.mission || null;
   game = Object.assign({ t: 0, kills: 0, points: 0, shots: 0 }, cfg); mode = 'play';
   resetPlayer(cfg.x, cfg.z, cfg.rot || 0, cfg.y || 0); applyLight();
-  if (cfg.weapon) { P.weapon = null; setWeapon(cfg.weapon); }
+  if (cfg.weapon) { const w = cfg.weapon === 'rifle' && save.prim && avail(save.prim) ? save.prim : cfg.weapon; P.weapon = null; setWeapon(w); }
   if (cfg.init) cfg.init(game);
   hudP.mesh.visible = true; objPos = null;
   msg(cfg.intro || cfg.name, GOLD, 4); if (cfg.say) say(cfg.say);
@@ -601,7 +648,7 @@ function endGame(win, reason){
 function toHub(){ hideMenus(); clearEnemies(); clearTargets(); mission = null; game = null; mode = 'hub'; resetPlayer(0, 3, 0); applyLight(); buildHubTargets(); openMenu(); }
 function pauseGame(){ mode = 'pause'; if (actx) actx.suspend(); placeInFront(pauseG, 1.0, -0.1); pauseG.visible = true; if (document.pointerLockElement) document.exitPointerLock(); }
 function resumeGame(){ pauseG.visible = false; mode = 'play'; if (actx) actx.resume(); }
-function interact(){ if (game && game.interact) game.interact(); }
+function interact(){ camera.getWorldPosition(head); const p = nearPickup(head, 2.3, true); if (p) { takePickup(p, null); return; } if (game && game.interact) game.interact(); }
 
 /* --- Hubi vabad märklauad --- */
 function buildHubTargets(){ clearTargets(); for (const [x, z, s] of [[-4.5, -10, 0.5], [-1.5, -15, 0.6], [1.5, -25, 0.8], [4.5, -50, 1.2], [0, -100, 2], [-6, -140, 2.5]]) makeTarget('bull', x, 1.2 + s * 0.2, z, { size: s, onHit: (t, loc) => { const r = Math.hypot(loc.x, loc.y - t.h / 2) / (t.w / 2); popTxt(t.g.position.clone().add(V3(0, t.h + 0.4, 0)), r < 0.25 ? '🎯 10' : r < 0.5 ? '8' : r < 0.8 ? '5' : '1', r < 0.25 ? GOLD : '#fff'); } }); }
@@ -650,11 +697,11 @@ function killhouse(){
 /* --- 🧟 LAINED --- */
 const EDGE = [[CX - 34, CZ - 34], [CX + 34, CZ - 34], [CX - 34, CZ + 34], [CX + 34, CZ + 34], [CX, CZ - 36], [CX, CZ + 36], [CX - 36, CZ], [CX + 36, CZ]];
 function waves(){
-  startGame({ id: 'waves', name: '🧟 Lainete kaitse', x: CX - 2, z: CZ + 8, rot: 0, weapon: 'rifle', push: true, intro: '🧟 Kaitse positsiooni! Lainete vahel: kast keskel = osta (E / puuduta)', say: 'Valmistu, vastased tulevad',
-    init: g => { g.wave = 0; g.breakT = 4; g.toSpawn = 0; g.money = 0; buildBuy(g); },
+  startGame({ id: 'waves', name: '🧟 Lainete kaitse', x: CX - 2, z: CZ + 8, rot: 0, weapon: 'rifle', push: true, intro: '🧟 Kaitse positsiooni koos 2 kaaslasega! Kui kaaslane kukub – elusta 💉 süstlaga. Pood: kast keskel (E)', say: 'Valmistu, vastased tulevad',
+    init: g => { g.wave = 0; g.breakT = 4; g.toSpawn = 0; g.money = 0; buildBuy(g); g.allies = [makeAlly(CX - 7, CZ + 6), makeAlly(CX + 7, CZ + 6)]; g.allies.forEach(a => a.yaw = 0); },
     onKill: () => { game.money += 100; },
     tick: (g, dt) => {
-      const alive = enemies.filter(e => !e.dead).length;
+      const alive = enemies.filter(e => !e.dead).length; for (const a of g.allies) { updAlly(a, dt, null, 0); allyShoot(a, dt, 35); }
       if (g.toSpawn > 0) { g.spawnT -= dt; if (g.spawnT <= 0 && alive < 8) { const [x, z] = pick(EDGE); const e = spawnEnemy(x + rand(-3, 3), z + rand(-3, 3), { alert: true }); e.lastSeen = V3(CX, 1.6, CZ); g.toSpawn--; g.spawnT = rand(0.8, 2); } }
       else if (alive === 0 && g.breakT <= 0) { g.breakT = 20; msg(`✔ Laine ${g.wave} läbi! Osta varustust – järgmine 20 s pärast`, '#9cff57', 4); S.ok(); addXp(30); buyG.visible = true; }
       if (buyG.visible && !buyMenu.visible) { camera.getWorldPosition(head); if (Math.hypot(head.x - (CX - 3), head.z - (CZ + 3)) < 1.6) { if (!g.nearBuy) { placeInFront(buyMenu, 0.9, -0.15); buyMenu.visible = true; } g.nearBuy = true; } else g.nearBuy = false; }
@@ -671,7 +718,7 @@ const buyMenu = new THREE.Group(); scene.add(buyMenu); buyMenu.visible = false;
 function buildBuy(g){
   while (buyMenu.children.length) { const m = buyMenu.children.pop(); const i = buttons.findIndex(b => b.p.mesh === m); if (i >= 0) buttons.splice(i, 1); }
   const p = new Panel(1.0, 0.75); p.draw((c, W, H) => { bg(c, W, H, GOLD); txt(c, '🛒 Varustus', W / 2, H * 0.1, H * 0.08, GOLD); }); buyMenu.add(p.mesh);
-  const items = [['🧱 Soomusvest +50', 400, () => P.armor = 50], ['❤️ Ravi täis', 300, () => P.hp = P.maxHp], ['💣 +2 granaati', 300, () => P.frags += 2], ['🌫️ +2 suitsu', 200, () => P.smokes += 2], ['🔫 Haavlipüss', 600, () => { mission = { weapons: ['shotgun', 'sniper', 'rifle', 'pistol'] }; setWeapon('shotgun'); }], ['🔭 Snaipripüss', 800, () => { mission = { weapons: ['shotgun', 'sniper', 'rifle', 'pistol'] }; setWeapon('sniper'); }]];
+  const items = [['🧱 Soomusvest +50', 400, () => P.armor = 50], ['💉 +2 süstalt', 300, () => P.stims += 2], ['💣 +2 granaati', 300, () => P.frags += 2], ['🌫️ +2 suitsu', 200, () => P.smokes += 2], ['🔫 Haavlipüss', 600, () => { mission = { weapons: ['shotgun', 'sniper', 'rifle', 'pistol'] }; setWeapon('shotgun'); }], ['🔭 Snaipripüss', 800, () => { mission = { weapons: ['shotgun', 'sniper', 'rifle', 'pistol'] }; setWeapon('sniper'); }]];
   items.forEach(([n, cost, fn], i) => btn(buyMenu, 0.45, 0.11, -0.24 + (i % 2) * 0.48, 0.17 - Math.floor(i / 2) * 0.14, `${n} • 💰${cost}`, () => { if (game.money < cost) { S.bad(); msg('💰 Raha ei jätku', '#ff8a80', 1.2); return; } game.money -= cost; fn(); S.ok(); msg(`✔ Ostetud: ${n}`, '#9cff57', 1.2); }));
   btn(buyMenu, 0.4, 0.1, 0, -0.3, '✖ Sulge', () => buyMenu.visible = false);
 }
@@ -698,8 +745,8 @@ const jet = jetModel(); let jetT = 0, jetFrom = V3(), jetTo = V3(), jetBomb = nu
 function flyJet(from, to, bombAt){ jet.visible = true; jetT = 0; jetFrom.copy(from); jetTo.copy(to); jet.position.copy(from); jet.lookAt(to); jet.rotateY(Math.PI); jetBomb = bombAt; if (actx) { const t = actx.currentTime, o = out(from.clone().lerp(to, 0.4)); nz(t, 4, 500, 0.6, 'lowpass', o); tn(t, 220, 90, 4, 0.15, 'sawtooth', o); } }
 function updJet(dt){ if (!jet.visible) return; jetT += dt / 4; jet.position.lerpVectors(jetFrom, jetTo, jetT); if (jetBomb && jetT > 0.45) { const b = jetBomb; jetBomb = null; b.forEach((p, i) => setTimeout(() => explode(p, true), 500 + i * 220)); } if (jetT >= 1) jet.visible = false; }
 const intel = () => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.7), M.wood); t.position.y = 0.9; g.add(t); for (const [x, z] of [[-0.55, -0.3], [0.55, -0.3], [-0.55, 0.3], [0.55, 0.3]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.05), M.wood); l.position.set(x, 0.45, z); g.add(l); } const lb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), M.dark); lb.position.y = 0.94; g.add(lb); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.2), new THREE.MeshBasicMaterial({ color: 0x55ff99 })); sc.position.set(0, 1.04, -0.11); sc.rotation.x = -0.25; g.add(sc); const sb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), M.dark); sb.position.set(0, 1.04, -0.125); sb.rotation.x = -0.25; g.add(sb); missionG.add(g); return g; };
-function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0) { a.dead = true; msg('❗ Liitlane langes!', '#ff8a80', 2); } }; m.g.position.copy(a.pos); return a; }
-function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { const st = Math.min(d, speed * dt); a.pos.x += dx / d * st; a.pos.z += dz / d * st; a.yaw = Math.atan2(dx, dz) + Math.PI; moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.t * 8)) * 0.04 : 0; g.rotation.set(0, a.yaw, 0); return moving; }
+function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0 && !a.downed) { a.downed = true; a.downT = 30; a.hp = 0; msg('❗ Kaaslane on maas! Elusta 💉 süstlaga', '#ff8a80', 3); say('Mees maas!'); } }; m.g.position.copy(a.pos); return a; }
+function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.downed && !a.dead) { a.downT -= dt; g.rotation.set(-Math.PI / 2 * 0.9, a.yaw, 0.4, 'YXZ'); g.position.copy(a.pos); g.position.y = 0.25; a.markT = (a.markT || 0) - dt; if (a.markT <= 0) { a.markT = 1.5; popTxt(a.pos.clone().add(V3(0, 1, 0)), `💉 ELUSTA ${Math.ceil(a.downT)}`, '#ff8a80'); } if (a.downT <= 0) { a.dead = true; msg('❗ Kaaslane langes!', '#ff8a80', 2); } return false; } if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { const st = Math.min(d, speed * dt); a.pos.x += dx / d * st; a.pos.z += dz / d * st; a.yaw = Math.atan2(dx, dz) + Math.PI; moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.t * 8)) * 0.04 : 0; g.rotation.set(0, a.yaw, 0); return moving; }
 // objektiivid
 function objTick(g, dt){
   if (g.oi == null) { g.oi = 0; }
@@ -747,7 +794,7 @@ function startMission(i){
         const live = g2.allies.filter(a => !a.dead); if (!live.length) { endGame(false, '❌ Salk langes'); return ''; }
         const contact = enemies.some(e => !e.dead && e.alert && e.pos.distanceTo(live[0].pos) < 28);
         if (!contact) g2.wp = Math.max(CZ - 34, g2.wp - dt * 1.4);
-        g2.allies.forEach((a, k) => { updAlly(a, dt, contact ? null : V3(CX - 1 + k * 0.9, 0, g2.wp + k * 1.5), 1.6); if (!a.dead && contact) { a.shootT = (a.shootT || rand(1, 3)) - dt; if (a.shootT <= 0) { a.shootT = rand(1.5, 3); const tgt = enemies.find(e => !e.dead && e.pos.distanceTo(a.pos) < 30); if (tgt) { const mz = a.m.mz.getWorldPosition(V3()); tracer(mz, tgt.pos.clone().add(V3(0, 1.3, 0)), 0x9fd7ff); S.enemyShot(mz); if (Math.random() < 0.25) damageEnemy(tgt, 40, tgt.pos.clone().add(V3(0, 1.2, 0)), V3(0, 0, 1), 'body'); } } } });
+        g2.allies.forEach((a, k) => { updAlly(a, dt, contact ? null : V3(CX - 1 + k * 0.9, 0, g2.wp + k * 1.5), 1.6); if (contact) allyShoot(a, dt, 30); });
         if (g2.spawned < g2.total && (alive() < 3 || g2.t2 === undefined)) { g2.t2 = 0; const n = Math.min(3, g2.total - g2.spawned); for (let k = 0; k < n; k++) { const z = g2.wp - rand(14, 26), x = CX + pick([-1, 1]) * rand(6, 18); const e = spawnEnemy(x, z, { alert: true }); e.lastSeen = live[0].pos.clone(); g2.spawned++; } }
         return '';
       };
@@ -832,9 +879,14 @@ function openMenu(){ hideMenus(); refreshMenu(); placeInFront(menuG, 1.35, -0.1)
 // relvaruum
 const armG = new THREE.Group(); scene.add(armG); armG.visible = false;
 const armP = new Panel(1.3, 0.9); armG.add(armP.mesh);
-const armBtns = WORDER.map((k, i) => btn(armG, 0.55, 0.13, -0.3 + (i % 2) * 0.6, 0.15 - Math.floor(i / 2) * 0.17, WEAPONS[k].n, () => { if (WEAPONS[k].rank > rankIdx()) { S.bad(); return; } setWeapon(k); openArmory(); }));
+const armBtns = PRIMS.map((k, i) => btn(armG, 0.38, 0.12, -0.41 + (i % 3) * 0.41, 0.17 - Math.floor(i / 3) * 0.15, WEAPONS[k].n, () => { if (!avail(k)) { S.bad(); msg(WEAPONS[k].find ? '🔍 Leia see relv maailmast!' : '🔒 Auaste liiga madal', '#ff8a80', 1.5); return; } setWeapon(k); openArmory(); }));
+const armSight = btn(armG, 0.55, 0.11, -0.3, -0.16, '', () => { const k = P.prim; if (!canSight(k)) { S.bad(); return; } const opts = [null, ...['holo', 'acog'].filter(a => save.found[a])]; const a = save.att[k] || {}; a.sight = opts[(opts.indexOf(a.sight || null) + 1) % opts.length]; save.att[k] = a; persist(); applyAtt(k); openArmory(); });
+const armSupp = btn(armG, 0.55, 0.11, 0.3, -0.16, '', () => { const k = P.prim; if (!canSupp(k) || !save.found.supp) { S.bad(); msg(save.found.supp ? 'Sellele relvale ei sobi' : '🔍 Leia summuti maailmast!', '#ff8a80', 1.5); return; } const a = save.att[k] || {}; a.supp = !a.supp; save.att[k] = a; persist(); applyAtt(k); openArmory(); });
 btn(armG, 0.4, 0.11, 0, -0.33, '✖ Tagasi', () => openMenu());
-function openArmory(){ hideMenus(); armP.draw((c, W, H) => { bg(c, W, H, GOLD); txt(c, '🛠️ RELVAD', W / 2, H * 0.09, H * 0.08, GOLD, '900'); txt(c, 'Uued relvad avanevad auastmetega • kinnitused (sihikud, summuti) tulekul', W / 2, H * 0.19, H * 0.035, '#b9c0a8', 'normal'); }); armBtns.forEach((b, i) => { const k = WORDER[i], d = WEAPONS[k]; b.lock = d.rank > rankIdx(); b.sel = P.weapon === k; b.sub = b.lock ? `🔒 ${RANKS[d.rank]}` : `salv ${d.mag} • ${d.auto ? 'automaatne' : 'üksik'}`; b.draw(); }); placeInFront(armG, 1.2, -0.1); armG.visible = true; }
+function openArmory(){ hideMenus(); const nf = ['smg', 'lmg', 'holo', 'acog', 'supp'].filter(k => save.found[k]).length; armP.draw((c, W, H) => { bg(c, W, H, GOLD); txt(c, '🛠️ RELVAD JA LISAD', W / 2, H * 0.08, H * 0.07, GOLD, '900'); txt(c, `🔍 Leitud ${nf}/5 • Otsi baasist, tapamajast ja kompleksist kuldseid valgussambaid!`, W / 2, H * 0.165, H * 0.032, '#b9c0a8', 'normal'); });
+  armBtns.forEach((b, i) => { const k = PRIMS[i], d = WEAPONS[k]; b.lock = !avail(k); b.sel = P.prim === k; b.sub = b.lock ? (d.find ? '🔍 leia maailmast' : `🔒 ${RANKS[d.rank]}`) : `salv ${d.mag} • ${d.auto ? 'automaatne' : 'üksik'}`; b.draw(); });
+  const a = save.att[P.prim] || {}; armSight.label = canSight(P.prim) ? `Sihik: ${a.sight ? ATTN[a.sight] : 'tavaline'}` : 'Sihik: ei sobi'; armSight.sub = canSight(P.prim) ? (save.found.holo || save.found.acog ? 'vajuta = vaheta' : '🔍 leia sihikud maailmast') : ''; armSupp.label = `🔇 Summuti: ${a.supp ? 'PEAL' : 'maas'}`; armSupp.sub = !save.found.supp ? '🔍 leia maailmast' : canSupp(P.prim) ? 'vajuta = vaheta' : 'ei sobi'; armSight.draw(); armSupp.draw();
+  placeInFront(armG, 1.2, -0.1); armG.visible = true; }
 const pauseG = new THREE.Group(); scene.add(pauseG); pauseG.visible = false;
 { const p = new Panel(0.8, 0.6); p.draw((c, W, H) => { bg(c, W, H); txt(c, '⏸ PAUS', W / 2, H * 0.15, H * 0.12, GOLD, '900'); }); pauseG.add(p.mesh); btn(pauseG, 0.55, 0.11, 0, 0.05, '▶ Jätka', () => resumeGame()); btn(pauseG, 0.55, 0.11, 0, -0.1, '🔁 Alusta uuesti', () => { const c = game.restart; c(); }); btn(pauseG, 0.55, 0.11, 0, -0.24, '🏠 Baasi', () => { if (actx) actx.resume(); toHub(); }); }
 const endG = new THREE.Group(); scene.add(endG); endG.visible = false;
@@ -855,16 +907,17 @@ function explode(p, big = false, R = 7){
   for (let i = 0; i < 30; i++) emit(p.clone().add(V3(0, 0.5, 0)), V3(rand(-1.5, 1.5), rand(0.5, 2.5), rand(-1.5, 1.5)), pick([0x555555, 0x777777, 0x3a3a3a]), 0.6, rand(1.5, 3), 0, 0.8);
   if (big) { for (let i = 0; i < 40; i++) emit(p.clone().add(V3(0, 1, 0)), V3(rand(-2, 2), rand(1, 4), rand(-2, 2)), pick([0x222222, 0x444444]), 2, rand(3, 5), 0, 1.2); }
   for (const e of enemies) { if (e.dead) continue; const d = e.pos.distanceTo(p); if (d < R && los(p.clone().add(V3(0, 0.4, 0)), e.pos.clone().add(V3(0, 1, 0)))) damageEnemy(e, 220 * (1 - d / (R + 0.5)), e.pos.clone().add(V3(0, 1, 0)), e.pos.clone().sub(p).normalize(), 'body'); }
-  camera.getWorldPosition(head); const dp = head.distanceTo(p); if (dp < 6) hurtPlayer(70 * (1 - dp / 6), p); if (dp < 15) for (const h of hands) pulse(h, 1, 300);
+  camera.getWorldPosition(head); const dp = head.distanceTo(p); if (dp < 6) hurtPlayer(70 * (1 - dp / 6), p); if (dp < 15) for (const h of hands) pulse(h, 1, 300); if (dp < 10 && mode !== 'hub') { S.ring(1 - dp / 10); hurtM.material.color.set(0xffffff); hurtM.material.opacity = Math.max(hurtM.material.opacity, 0.5 * (1 - dp / 10)); }
   for (const t of targets) if (t.up && t.g.position.distanceTo(p) < 5) t.sh.hit(t.g.position.clone().add(V3(0, 1, 0)), V3(0, 1, 0), 0, V3());
 }
 function updProps(dt){
   for (let i = props.length - 1; i >= 0; i--) {
     const p = props[i]; p.age += dt;
-    if (p.held) continue;
-    if (p.live && !p.rest) { p.vel.y -= 9.8 * dt; const o = p.g.position.clone(), step = p.vel.clone().multiplyScalar(dt), L = step.length(); if (L > 0) { const d = step.clone().divideScalar(L), w = castWorld(o, d, L + 0.04); if (w.t < L + 0.04) { const n = w.hit === 'ground' ? V3(0, 1, 0) : boxNormal(w.hit, o.clone().addScaledVector(d, w.t)); p.g.position.addScaledVector(d, Math.max(0, w.t - 0.04)); p.vel.reflect(n).multiplyScalar(0.35); if (p.vel.length() < 0.6 && n.y > 0.5) p.rest = true; } else p.g.position.add(step); } p.g.rotation.x += dt * 6; }
+    if (p.held) { if (p.cook && p.type === 'frag') { p.fuse -= dt; if (p.fuse <= 0) { const h = p.held; h.held = null; explode(p.g.getWorldPosition(V3())); removeProp(p); } } continue; }
+    if (p.live && !p.rest) { p.vel.y -= 9.8 * dt; const o = p.g.position.clone(), step = p.vel.clone().multiplyScalar(dt), L = step.length(); if (L > 0) { const d = step.clone().divideScalar(L), w = castWorld(o, d, L + 0.04); if (w.t < L + 0.04) { const n = w.hit === 'ground' ? V3(0, 1, 0) : boxNormal(w.hit, o.clone().addScaledVector(d, w.t)); p.g.position.addScaledVector(d, Math.max(0, w.t - 0.04)); const sp0 = p.vel.length(); p.vel.reflect(n).multiplyScalar(0.38); if (n.y > 0.5) { p.vel.x *= 0.7; p.vel.z *= 0.7; p.vel.y *= 0.5; } if (sp0 > 1.5 && (p.type === 'frag' || p.type === 'smoke' || p.type === 'shell' || p.type === 'mag')) S.clink(p.g.position); if (p.vel.length() < 0.5 && n.y > 0.5) p.rest = true; } else p.g.position.add(step); } p.g.rotation.x += dt * 6; }
     if ((p.type === 'frag' || p.type === 'smoke') && p.live) { p.fuse -= dt; if (p.fuse <= 0) { if (p.type === 'frag') { explode(p.g.position.clone()); removeProp(p); continue; } else if (!p.smoked) { p.smoked = true; smokes.push({ p: p.g.position.clone().add(V3(0, 1.2, 0)), r: 0.5, t: 0, prop: p }); S.hiss(p.g.position); } } }
-    if (p.type === 'mag' && p.empty && p.age > 6) { removeProp(p); continue; }
+    if ((p.type === 'mag' && p.empty || p.type === 'shell' || p.type === 'stim') && p.age > 6 && !p.held) { removeProp(p); continue; }
+    if (p.enemy && p.live && !p.warned) { camera.getWorldPosition(head); if (head.distanceTo(p.g.position) < 8) { p.warned = true; msg('⚠️ GRANAAT! JOOKSE!', '#ff5252', 2); S.beep(1500); say('Granaat!'); } }
   }
   for (let i = smokes.length - 1; i >= 0; i--) { const s = smokes[i]; s.t += dt; s.r = Math.min(4, 0.5 + s.t * 1.2); if (s.t < 18 && Math.random() < dt * 25) emit(s.p.clone().add(V3(rand(-s.r, s.r) * 0.6, rand(-1, 1), rand(-s.r, s.r) * 0.6)), V3(rand(-0.2, 0.2), 0.1, rand(-0.2, 0.2)), pick([0xdddddd, 0xcfcfcf, 0xe8e8e8]), 1.4, 4, 0, 0.3); if (s.t > 22) { if (s.prop) removeProp(s.prop); smokes.splice(i, 1); } }
 }
@@ -878,7 +931,8 @@ function readXR(dt){
   const s = renderer.xr.getSession(); if (!s) return; let mx = 0, my = 0;
   for (const src of s.inputSources) {
     const gp = src.gamepad, h = hands.find(x => x.side === src.handedness); if (!gp || !h || h.isHand) continue;
-    const ax = gp.axes, b = gp.buttons, sx = ax.length >= 4 ? ax[2] : ax[0] || 0, sy = ax.length >= 4 ? ax[3] : ax[1] || 0;
+    const ax = gp.axes, b = gp.buttons, gr0 = b[1] && b[1].value > 0.5; if (src.handedness === 'right') edge('rgrip', gr0, () => rightGrab(h));
+    const sx = ax.length >= 4 ? ax[2] : ax[0] || 0, sy = ax.length >= 4 ? ax[3] : ax[1] || 0;
     h.trig = b[0] && b[0].value > 0.5; const gr = b[1] && b[1].value > 0.5;
     if (src.handedness === 'left') {
       mx = sx; my = sy;
@@ -890,39 +944,57 @@ function readXR(dt){
       if (save.move === 'teleport') { if (sy < -0.6) tpAim = h; else if (tpAim === h && Math.abs(sy) < 0.2) { doTeleport(); tpAim = null; } }
     }
   }
-  if (save.move === 'smooth' && (mode === 'play' || mode === 'hub')) movePlayer(mx, my, dt, 2.2);
+  if (mode === 'play' || mode === 'hub') { const sw = swingSpeed(); if (sw > 0 && Math.hypot(mx, my) < 0.3) movePlayer(0, -1, dt, sw); else if (save.move === 'smooth') movePlayer(mx, my, dt, 2.2); }
 }
 function turn(a){ camera.getWorldPosition(head); rig.rotation.y += a; const after = camera.getWorldPosition(V3()); rig.position.x += head.x - after.x; rig.position.z += head.z - after.z; }
 function movePlayer(mx, my, dt, sp){
-  const len = Math.hypot(mx, my); P.speed = 0; if (len < 0.15) return;
+  const len = Math.hypot(mx, my); P.speed = 0; if (len < 0.15 || P.downed) return;
   camera.getWorldDirection(tmpD); tmpD.y = 0; tmpD.normalize(); const rx = -tmpD.z, rz = tmpD.x;
   const vx = (tmpD.x * -my + rx * mx) / Math.max(1, len) * sp * dt, vz = (tmpD.z * -my + rz * mx) / Math.max(1, len) * sp * dt;
   camera.getWorldPosition(head); const fy = rig.position.y;
   if (!blockedAt(head.x + vx, head.z + vz, 0.3, fy + 0.3, fy + 1.6) && inBounds(head.x + vx, head.z + vz)) { rig.position.x += vx; rig.position.z += vz; }
   else if (!blockedAt(head.x + vx, head.z, 0.3, fy + 0.3, fy + 1.6) && inBounds(head.x + vx, head.z)) rig.position.x += vx;
   else if (!blockedAt(head.x, head.z + vz, 0.3, fy + 0.3, fy + 1.6) && inBounds(head.x, head.z + vz)) rig.position.z += vz;
-  P.speed = sp;
+  P.speed = sp; P.stepD += sp * dt; if (P.stepD > (sp > 3.5 ? 0.9 : 0.7)) { P.stepD = 0; S.step(sp > 3.5); }
 }
 const inBounds = (x, z) => !(game && game.bounds) || (x > game.bounds[0] && x < game.bounds[1] && z > game.bounds[2] && z < game.bounds[3]);
 function doTeleport(){ if (!tpMark.visible) return; camera.getWorldPosition(head); rig.position.x += tpMark.position.x - head.x; rig.position.z += tpMark.position.z - head.z; tpMark.visible = false; }
 function updTeleport(){ tpMark.visible = false; if (!tpAim) return; tpAim.ctrl.getWorldPosition(tmpV); tpAim.ctrl.getWorldQuaternion(tmpQ); const d = V3(0, 0, -1).applyQuaternion(tmpQ); let p = tmpV.clone(), v = d.multiplyScalar(8); for (let i = 0; i < 40; i++) { v.y -= 9.8 * 0.05; const n = p.clone().addScaledVector(v, 0.05); if (n.y <= rig.position.y) { if (!blockedAt(n.x, n.z, 0.3, rig.position.y + 0.3, rig.position.y + 1.6) && inBounds(n.x, n.z)) { tpMark.position.set(n.x, rig.position.y + 0.02, n.z); tpMark.visible = true; } return; } p = n; } }
-// vasak käsi: salv (vöölt) või granaat (rinnalt)
-function bodyPoint(dx, dy, dz){ camera.getWorldPosition(head); camera.getWorldDirection(tmpD); tmpD.y = 0; tmpD.normalize(); const r = V3(-tmpD.z, 0, tmpD.x); return head.clone().addScaledVector(r, dx).add(V3(0, dy, 0)).addScaledVector(tmpD, dz); }
+// käed: esemed päriselt kehalt (taskud), maast ja leitavad asjad
+function grabInto(h, type){ const p = newProp(type, handPos(h, V3())); p.held = h; h.held = p; (h.isHand ? h.hHold : h.holder).attach(p.g); p.g.position.set(0, 0, 0); p.g.quaternion.identity(); p.grabAt = handPos(h, V3()); p.armed = false; S.click(); pulse(h, 0.4, 40); return p; }
 function leftGrab(h){
-  if (h.held || mode === 'end') return; const hp = handPos(h, V3()), g = guns[P.weapon];
+  if (h.held || mode === 'end' || mode === 'pause') return; const hp = handPos(h, V3()), g = guns[P.weapon];
   // kahe käega hoie
-  if (g.fore && g.g.visible) { const f = g.g.localToWorld(g.fore.clone()); if (hp.distanceTo(f) < 0.16) { P.twoHand = true; return; } }
-  const hip = bodyPoint(-0.2, -0.65, 0.05), chestL = bodyPoint(-0.1, -0.35, 0.18), chestR = bodyPoint(0.1, -0.35, 0.18);
-  if (hp.distanceTo(hip) < 0.22) { const p = newProp('mag', hp); p.held = h; h.held = p; (h.isHand ? h.hHold : h.holder).attach(p.g); p.g.position.set(0, 0, 0); S.click(); pulse(h, 0.3, 30); return; }
-  if (hp.distanceTo(chestL) < 0.18 || hp.distanceTo(chestR) < 0.18) { const type = hp.distanceTo(chestL) < hp.distanceTo(chestR) ? 'frag' : 'smoke'; if (type === 'frag' ? P.frags <= 0 : P.smokes <= 0) { msg(type === 'frag' ? '💣 Granaadid otsas' : '🌫️ Suitsud otsas', '#ff8a80', 1.2); return; } if (type === 'frag') P.frags--; else P.smokes--; const p = newProp(type, hp); p.held = h; h.held = p; (h.isHand ? h.hHold : h.holder).attach(p.g); p.g.position.set(0, 0, 0); S.click(); pulse(h, 0.4, 40); msg(type === 'frag' ? '💣 Viska! (lase külgnupp lahti)' : '🌫️ Viska! (lase lahti)', GOLD, 1.2); return; }
-  if (hip && hp.distanceTo(hip) < 0.4) msg('💡 Salv: vasak käsi vöö vasakule poolele', '#b9c0a8', 1.5);
+  if (g.fore && g.g.visible && !P.downed) { const f = g.g.localToWorld(g.fore.clone()); if (hp.distanceTo(f) < 0.16) { P.twoHand = true; return; } }
+  const pk = nearPickup(hp, 0.32); if (pk) { takePickup(pk, h); return; }
+  // maast / õhust granaat (viska tagasi!)
+  for (const p of props) if (!p.held && (p.type === 'frag' || p.type === 'smoke') && p.live && p.g.position.distanceTo(hp) < 0.2) { p.held = h; h.held = p; p.cook = p.type === 'frag'; p.rest = false; p.vel.set(0, 0, 0); (h.isHand ? h.hHold : h.holder).attach(p.g); p.g.position.set(0, 0, 0); S.click(); pulse(h, 0.8, 80); msg('💣 VISKA TAGASI!', '#ff5252', 1.2); return; }
+  const pn = nearestPouch(hp, 0.14); if (!pn) { if (hp.distanceTo(bodyPt('chest')) < 0.45) msg('💡 Vii käsi täpselt tasku juurde (helendab)', '#b9c0a8', 1.2); return; }
+  if (pn === 'mag1' || pn === 'mag2') { grabInto(h, g.kind === 'shotgun' ? 'shell' : 'mag'); return; }
+  if (pn === 'frag' || pn === 'smoke') { if (pn === 'frag' ? P.frags <= 0 : P.smokes <= 0) { msg(pn === 'frag' ? '💣 Granaadid otsas' : '🌫️ Suitsud otsas', '#ff8a80', 1.2); S.bad(); return; } if (pn === 'frag') P.frags--; else P.smokes--; grabInto(h, pn); msg(pn === 'frag' ? '💣 Viska! (lase külgnupp lahti)' : '🌫️ Viska! (lase lahti)', GOLD, 1.2); return; }
+  if (pn === 'stim') { if (P.stims <= 0) { msg('💉 Süstlad otsas – leia 📦 varustuskast', '#ff8a80', 1.5); S.bad(); return; } P.stims--; grabInto(h, 'stim'); msg('💉 Torka rinda või reide! (või maas kaaslasele)', GOLD, 2); return; }
 }
+function rightGrab(h){
+  if (mode === 'end' || mode === 'pause' || h.hover) return; const hp = handPos(h, V3());
+  const pk = nearPickup(hp, 0.32); if (pk) { takePickup(pk, h); return; }
+  if (hp.distanceTo(bodyPt('holster')) < 0.2) { if (P.weapon !== 'pistol') { setWeapon('pistol'); pulse(h, 0.6, 60); } return; }
+  if (hp.distanceTo(bodyPt('back')) < 0.25) { if (P.weapon === 'pistol') { setWeapon(avail(P.prim) ? P.prim : 'rifle'); pulse(h, 0.6, 60); } return; }
+}
+function throwVel(h){ const now = performance.now(), hp = handPos(h, V3()); let best = h.vel.clone(); for (const s of h.hist || []) { const dtt = (now - s.t) / 1000; if (dtt > 0.03 && dtt < 0.12) { const v = hp.clone().sub(s.p).divideScalar(dtt); if (v.length() > best.length()) best = v; } } return best; }
 function leftRelease(h){
   P.twoHand = false; const p = h.held; if (!p) return; h.held = null; p.held = null; scene.attach(p.g);
-  if (p.type === 'mag') { p.live = true; p.empty = true; p.vel.copy(h.vel); return; }
-  p.live = true; p.vel.copy(h.vel).multiplyScalar(1.4); if (p.type === 'frag') p.fuse = 3.0;
+  if (p.type === 'mag' || p.type === 'shell') { p.live = true; p.empty = true; p.vel.copy(h.vel); return; }
+  if (p.type === 'stim') { removeProp(p); P.stims++; msg('💉 Süstal tagasi taskusse', '#b9c0a8', 1); return; }
+  const v = throwVel(h); v.multiplyScalar(1.6); if (v.length() > 24) v.setLength(24); if (v.length() > 2.5) v.y += 0.6;
+  p.live = true; p.rest = false; p.vel.copy(v); if (p.type === 'frag' && !p.cook) p.fuse = 3.0; p.cook = false; S.whoosh(); pulse(h, 0.3, 30);
 }
-function checkMagInsert(){ const h = L(); if (!h || !h.held || h.held.type !== 'mag') return; const g = guns[P.weapon]; if (g.hasMag && g.ammo === g.def.mag) return; const mw = g.g.localToWorld(g.magwell.clone()); if (handPos(h, V3()).distanceTo(mw) < 0.13 || h.held.g.getWorldPosition(V3()).distanceTo(mw) < 0.11) { const p = h.held; h.held = null; removeProp(p); if (g.hasMag) { g.hasMag = false; } insertMag(); pulse(h, 0.6, 50); pulse(R(), 0.6, 50); } }
+function checkMagInsert(){ for (const h of hands) { if (!h.connected || !h.held || h === R() && !L()) continue; const p = h.held, g = guns[P.weapon]; if (p.type !== 'mag' && p.type !== 'shell' && p.type !== 'stim') continue;
+  if (p.type === 'stim') { const sp = p.g.getWorldPosition(V3()); if (!p.armed && sp.distanceTo(p.grabAt) > 0.2) p.armed = true; if (!p.armed) continue;
+    const ally = game && game.allies && game.allies.find(a => a.downed && !a.dead && a.pos.clone().add(V3(0, 0.3, 0)).distanceTo(sp) < 0.6);
+    if (ally) { h.held = null; removeProp(p); reviveAlly(ally); pulse(h, 0.8, 100); continue; }
+    if (sp.distanceTo(bodyPt('chest')) < 0.14 || sp.distanceTo(bodyPt('thigh')) < 0.17 || sp.distanceTo(bodyPt('neck')) < 0.12) { h.held = null; removeProp(p); applyStim(); pulse(h, 1, 150); } continue; }
+  if (p.type === 'shell') { if (g.kind !== 'shotgun' || g.ammo >= g.def.mag) continue; const port = g.g.localToWorld(V3(0, -0.02, -0.08)); if (p.g.getWorldPosition(V3()).distanceTo(port) < 0.1 || handPos(h, V3()).distanceTo(port) < 0.11) { h.held = null; removeProp(p); g.ammo++; drawAmmo(g); S.shell(); pulse(h, 0.5, 40); } continue; }
+  if (g.kind === 'shotgun' || g.hasMag && g.ammo === g.def.mag) continue; const mw = g.g.localToWorld(g.magwell.clone()); if (handPos(h, V3()).distanceTo(mw) < 0.13 || p.g.getWorldPosition(V3()).distanceTo(mw) < 0.11) { h.held = null; removeProp(p); if (g.hasMag) ejectMag(true); cancelReload(); insertMag(true); pulse(h, 0.6, 50); pulse(R(), 0.6, 50); } } }
 // päris käte žestid
 const J = (h, n) => h.hand.joints && h.hand.joints[n];
 function handGestures(h){
@@ -930,7 +1002,7 @@ function handGestures(h){
   const Pp = palm.getWorldPosition(V3()), I = it.getWorldPosition(V3()), T = th.getWorldPosition(V3());
   const curl = (I.distanceTo(Pp) + mt.getWorldPosition(V3()).distanceTo(Pp) + rt.getWorldPosition(V3()).distanceTo(Pp)) / 3, pinch = I.distanceTo(T);
   h.hHold.position.copy(Pp); w.getWorldQuaternion(h.hHold.quaternion);
-  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; h.selTrig = false; const mm = J(h, 'middle-finger-metacarpal'), im = J(h, 'index-finger-metacarpal'), pm = J(h, 'pinky-finger-metacarpal'); if (mm && im && pm) { const W0 = w.getWorldPosition(V3()), fwd = mm.getWorldPosition(V3()).sub(W0).normalize(), side = im.getWorldPosition(V3()).sub(pm.getWorldPosition(V3())).normalize(); const up = side.sub(fwd.clone().multiplyScalar(side.dot(fwd))).normalize(), zAx = fwd.clone().negate(), xAx = up.clone().cross(zAx); h.gunQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, up, zAx)); } }
+  if (h.side === 'right') { h.trig = pinch < 0.03 && !h.hover; h.selTrig = false; const fist = curl < 0.07; if (fist && !h.rFist) rightGrab(h); h.rFist = fist; const mm = J(h, 'middle-finger-metacarpal'), im = J(h, 'index-finger-metacarpal'), pm = J(h, 'pinky-finger-metacarpal'); if (mm && im && pm) { const W0 = w.getWorldPosition(V3()), fwd = mm.getWorldPosition(V3()).sub(W0).normalize(), side = im.getWorldPosition(V3()).sub(pm.getWorldPosition(V3())).normalize(); const up = side.sub(fwd.clone().multiplyScalar(side.dot(fwd))).normalize(), zAx = fwd.clone().negate(), xAx = up.clone().cross(zAx); h.gunQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, up, zAx)); } }
   else { const closed = curl < 0.07, open = curl > 0.085; if (!h.gClosed && closed) { h.gClosed = true; leftGrab(h); } else if (h.gClosed && open) { h.gClosed = false; leftRelease(h); } }
 }
 
@@ -943,30 +1015,167 @@ function updateWeapon(dt){
     else { h.holder.getWorldPosition(g.g.position); h.holder.getWorldQuaternion(g.g.quaternion); }
     const lh = L(); if (P.twoHand && lh && g.fore) { const lp = handPos(lh, V3()); const dir = lp.sub(g.g.position).normalize(); const up = V3(0, 1, 0).applyQuaternion(g.g.quaternion); const m = new THREE.Matrix4().lookAt(V3(), dir.clone().negate().negate(), up); g.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(g.g.position, g.g.position.clone().add(dir), up)); }
     if (P.kick) { g.g.rotateX(P.kick * 2); g.g.translateZ(P.kick * 0.5); P.kick *= Math.exp(-dt * 20); if (P.kick < 0.002) P.kick = 0; }
+    applyAnimPose(g, dt);
   } else {
     const ads = rmb && mode !== 'end'; P.ads = ads; const targ = ads ? V3(0, -g.sightY - 0.0, -0.3) : V3(0.17, -0.2, -0.38);
-    camera.updateMatrixWorld(); const lp = targ; if (P.reloadT > 0) lp.y -= 0.15; g.g.position.copy(camera.localToWorld(lp.clone())); g.g.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion()));
-    if (P.reloadT > 0) g.g.rotateX(0.5);
-    const fov = ads ? (g.def.scope ? 75 / g.def.scope : 55) : 75; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
-    document.getElementById('cross').style.display = ads && !g.def.scope ? 'none' : '';
+    camera.updateMatrixWorld(); const lp = targ; if (P.rl) { lp.y -= 0.05; lp.x -= 0.05; } if (P.speed > 0 && !ads) { const bt = performance.now() / 1000 * (P.speed > 3 ? 11 : 8); lp.x += Math.sin(bt) * 0.008; lp.y += Math.abs(Math.cos(bt)) * 0.01; } g.g.position.copy(camera.localToWorld(lp.clone())); g.g.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion())); applyAnimPose(g, dt);
+    const fov = ads ? (g.zoom ? 75 / g.zoom : 55) : 75; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
+    document.getElementById('cross').style.display = ads && !g.zoom ? 'none' : '';
   }
   // laser (VR sihtimisabi)
   laserDot.visible = laserBeam.visible = false;
-  if (renderer.xr.isPresenting && g.kind !== 'sniper' && mode !== 'end') { const o = g.mz.getWorldPosition(V3()), d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); let t = castWorld(o, d, 120).t; for (const sh of shootables) { const r = sh.test(o, d, t); if (r && r.t < t) t = r.t; } if (t < 120) { laserDot.position.copy(o).addScaledVector(d, t - 0.02); laserDot.scale.setScalar(Math.max(1, t * 0.08)); laserDot.visible = true; } laserBeam.position.copy(o); laserBeam.lookAt(o.clone().add(d)); laserBeam.scale.set(1, 1, Math.min(t, 120)); laserBeam.rotation.z = 0; laserBeam.visible = true; }
+  if (renderer.xr.isPresenting && !g.zoom && mode !== 'end' && !P.rl) { const o = g.mz.getWorldPosition(V3()), d = V3(0, 0, -1).applyQuaternion(g.g.getWorldQuaternion(new THREE.Quaternion())); let t = castWorld(o, d, 120).t; for (const sh of shootables) { const r = sh.test(o, d, t); if (r && r.t < t) t = r.t; } if (t < 120) { laserDot.position.copy(o).addScaledVector(d, t - 0.02); laserDot.scale.setScalar(Math.max(1, t * 0.08)); laserDot.visible = true; } laserBeam.position.copy(o); laserBeam.lookAt(o.clone().add(d)); laserBeam.scale.set(1, 1, Math.min(t, 120)); laserBeam.rotation.z = 0; laserBeam.visible = true; }
   // laadimine (taimer)
-  if (P.reloadT > 0) { P.reloadT -= dt; if (P.reloadT <= 0) { insertMag(); } }
+  updReload(g, dt);
   // snaipri sihiku pilt
-  if (g.lens && renderer.xr.isPresenting) { g.mz.getWorldPosition(scopeCam.position); scopeCam.position.copy(g.g.localToWorld(V3(0, 0.115, 0.05))); g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
+  if (g.lens && renderer.xr.isPresenting) { g.lens.getWorldPosition(scopeCam.position); if (Math.abs(scopeCam.fov - 75 / g.zoom) > 0.01) { scopeCam.fov = 75 / g.zoom; scopeCam.updateProjectionMatrix(); } g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
 }
 // sihiku ristnitkud tekstuuri peale
 scopeRT.texture.colorSpace = THREE.SRGBColorSpace;
 
+/* ===================== EL3: ANIMATSIOONID, KEHA, SÜSTAL, LEITAVAD ASJAD ===================== */
+P.pose = { rx: 0, rz: 0 };
+const ghost = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.12, 0.05), M.dark); ghost.visible = false; scene.add(ghost);
+const ghostS = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.065, 8).rotateX(Math.PI / 2), M.red); ghostS.visible = false; scene.add(ghostS);
+const ease = u => u * u * (3 - 2 * u);
+function pouchSrc(n){ return renderer.xr.isPresenting ? bodyPt(n) : (camera.updateMatrixWorld(), camera.localToWorld(V3(-0.12, -0.42, -0.25))); }
+function updReload(g, dt){
+  P.swapT = Math.max(0, P.swapT - dt); P.slideK = Math.max(0, P.slideK - dt * 14); P.pose.rx = P.pose.rz = 0; ghost.visible = ghostS.visible = false; P.pumpVis = 0;
+  const q = g.g.getWorldQuaternion(new THREE.Quaternion());
+  if (P.boltT > 0) { const t0 = P.boltT; P.boltT = Math.max(0, P.boltT - dt); if (t0 > 0.5 && P.boltT <= 0.5) { S.rack(); emit(g.g.localToWorld(V3(0.04, 0.06, 0.02)), V3(1.5, 1.2, 0.3).applyQuaternion(q), 0xd4a74a, 0.016, 0.8, -9); } }
+  if (P.pumpT > 0) { const t0 = P.pumpT; P.pumpT = Math.max(0, P.pumpT - dt); if (t0 > 0.28 && P.pumpT <= 0.28) { S.rack(); emit(g.g.localToWorld(V3(0.04, 0.03, -0.05)), V3(1.5, 1, 0.2).applyQuaternion(q), 0xc62828, 0.02, 0.8, -9); } P.pumpVis = Math.sin((0.5 - P.pumpT) / 0.5 * Math.PI); }
+  const r = P.rl; if (!r) return; r.t += dt;
+  if (r.k === 'rack') { const u = Math.min(1, r.t / 0.5); P.pose.rz = Math.sin(u * Math.PI) * 0.35; r.chg = Math.sin(u * Math.PI); if (!r.s && u > 0.4) { r.s = 1; S.rack(); } if (u >= 1) P.rl = null; return; }
+  if (r.k === 'mag') {
+    const u = r.t / r.dur, tilt = u < 0.18 ? ease(u / 0.18) : u > 0.86 ? ease(Math.max(0, (1 - u) / 0.14)) : 1; P.pose.rz = tilt * 0.6; P.pose.rx = tilt * 0.25;
+    if (!r.ej && u > 0.2) { r.ej = true; if (g.hasMag) ejectMag(); else S.mag(); }
+    if (u > 0.24 && u < 0.62) { const k = ease((u - 0.24) / 0.38), a = pouchSrc('mag1'), b = g.g.localToWorld(g.magwell.clone().add(V3(0, -0.06 * (1 - k), 0))); ghost.position.lerpVectors(a, b, k); ghost.position.y += Math.sin(k * Math.PI) * 0.08; ghost.quaternion.copy(q); ghost.visible = true; }
+    if (!r.ins && u >= 0.62) { r.ins = true; g.hasMag = true; g.mag.visible = true; g.ammo = g.def.mag; drawAmmo(g); S.mag(); for (const h of hands) pulse(h, 0.5, 40); }
+    r.chg = 0; if (r.wasEmpty && u > 0.66 && u < 0.86) { r.chg = Math.sin((u - 0.66) / 0.2 * Math.PI); if (!r.rk && u > 0.74) { r.rk = true; S.rack(); } }
+    if (u >= 1) P.rl = null; return;
+  }
+  if (r.k === 'shell') {
+    if (!r.done) { const tilt = ease(Math.min(1, r.t / 0.25)); P.pose.rz = -tilt * 0.45; P.pose.rx = tilt * 0.15;
+      if (r.t > 0.25) { const c = Math.floor((r.t - 0.25) / 0.45), ph = ((r.t - 0.25) % 0.45) / 0.45; if (c > r.n) { r.n = c; g.ammo = Math.min(g.def.mag, g.ammo + 1); drawAmmo(g); S.shell(); pulse(R(), 0.3, 20); if (g.ammo >= g.def.mag) { r.done = true; r.tEnd = r.t; } }
+        if (!r.done) { const a = pouchSrc('mag2'), b = g.g.localToWorld(V3(0, -0.02, -0.08)); ghostS.position.lerpVectors(a, b, ease(ph)); ghostS.quaternion.copy(q); ghostS.visible = true; } } }
+    else { const e = r.t - r.tEnd, pd = r.wasEmpty ? 0.45 : 0; if (r.wasEmpty && e < pd) { P.pumpVis = Math.sin(e / pd * Math.PI); if (!r.pk && e > pd / 2) { r.pk = 1; S.rack(); } } const tilt = 1 - ease(clamp((e - pd) / 0.25, 0, 1)); P.pose.rz = -tilt * 0.45; P.pose.rx = tilt * 0.15; if (tilt <= 0) P.rl = null; }
+  }
+}
+function applyAnimPose(g, dt){
+  const sw = P.swapT > 0 ? Math.sin(P.swapT / 0.4 * Math.PI) : 0; if (sw) { g.g.translateY(-sw * 0.12); g.g.rotateX(-sw * 0.7); }
+  if (P.pose.rz) g.g.rotateZ(P.pose.rz); if (P.pose.rx) g.g.rotateX(P.pose.rx);
+  if (g.slide) g.slide.position.z = (g.ammo === 0 ? 0.032 : 0) + P.slideK * 0.028;
+  if (g.charge) g.charge.position.z = 0.075 + (P.rl && P.rl.chg ? P.rl.chg * 0.07 : 0) + (g.kind !== 'pistol' ? P.slideK * 0.01 : 0);
+  if (g.pump) g.pump.position.z = -0.42 + (P.pumpVis || 0) * 0.09;
+  if (g.bolt) { const u = P.boltT > 0 ? 1 - P.boltT / 0.8 : 0; g.bolt.rotation.z = u <= 0 ? 0 : u < 0.2 ? u / 0.2 * 1.3 : u > 0.8 ? (1 - u) / 0.2 * 1.3 : 1.3; g.bolt.position.z = 0.03 + (u > 0.2 && u < 0.8 ? Math.sin((u - 0.2) / 0.6 * Math.PI) * 0.075 : 0); }
+}
+/* --- vastaste animatsioonid, laadimine, granaadid --- */
+function animLegs(e, moving, dt, run){
+  const amp = moving ? (run ? 0.65 : 0.35) : 0, p0 = e.ph; e.ph += dt * (moving ? (run ? 11 : 6.5) : 0);
+  e.m.legs.forEach((l, i) => { const s = Math.sin(e.ph + i * Math.PI) * amp; l.lg.rotation.x += (s - l.lg.rotation.x) * Math.min(1, dt * 15); if (l.kn) l.kn.rotation.x = -Math.max(0, Math.sin(e.ph + i * Math.PI + 1.2)) * amp * 1.5; });
+  if (moving && Math.floor(p0 / Math.PI) !== Math.floor(e.ph / Math.PI)) { camera.getWorldPosition(head); if (head.distanceTo(e.pos) < 16) S.step(run, e.pos); }
+}
+function enemyReload(e){ e.reloadT = 2.4; e.ammo = 30; const p = newProp('mag', e.m.gun.getWorldPosition(V3()).add(V3(0, -0.1, 0))); p.live = true; p.empty = true; p.vel.set(rand(-0.3, 0.3), -0.5, rand(-0.3, 0.3)); }
+function enemyNade(e, tg){
+  e.nades--; e.throwT = 0.6; e.nadeT = rand(10, 18);
+  const start = e.pos.clone().add(V3(0, 1.75, 0)), tgt = V3(tg.x + rand(-1.3, 1.3), Math.max(e.pos.y, tg.y - 1.55), tg.z + rand(-1.3, 1.3)), d = Math.hypot(tgt.x - start.x, tgt.z - start.z), T = clamp(d / 11, 0.8, 1.6);
+  const v = tgt.clone().sub(start).divideScalar(T); v.y += 0.5 * 9.8 * T;
+  const p = newProp('frag', start); p.vel.copy(v); p.live = true; p.fuse = T + rand(0.9, 1.5); p.enemy = true; S.whoosh();
+}
+/* --- suunanäidik (kust tabati) --- */
+const dirTex = canvasTex(128, 64, (c, W, H) => { c.clearRect(0, 0, W, H); const gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.beginPath(); c.moveTo(W / 2, 2); c.lineTo(W - 4, H - 4); c.lineTo(W / 2, H * 0.55); c.lineTo(4, H - 4); c.closePath(); c.fill(); });
+const dirs = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.045), new THREE.MeshBasicMaterial({ map: dirTex, transparent: true, depthTest: false, depthWrite: false, fog: false, color: 0xff2020 })); m.renderOrder = 61; m.visible = false; camera.add(m); m.userData = { t: 0, from: V3() }; return m; });
+let dirI = 0;
+function dirHit(from, col = 0xff2020, t = 1.3){ const m = dirs[dirI = (dirI + 1) % dirs.length]; m.userData.from.copy(from); m.userData.t = t; m.material.color.set(col); m.visible = true; }
+function updDir(dt){ camera.updateMatrixWorld(); for (const m of dirs) { if (!m.visible) continue; m.userData.t -= dt; if (m.userData.t <= 0) { m.visible = false; continue; } const lp = camera.worldToLocal(m.userData.from.clone()), a = Math.atan2(lp.x, -lp.z); m.position.set(Math.sin(a) * 0.13, Math.cos(a) * 0.13, -0.5); m.rotation.z = -a; m.material.opacity = Math.min(1, m.userData.t * 1.5); } }
+const nadeSpr = Array.from({ length: 3 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(64, 64, c => { c.font = '48px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#ff3030'; c.beginPath(); c.arc(32, 32, 30, 0, 7); c.fill(); c.fillText('💣', 32, 36); }), depthTest: false, fog: false })); sp.scale.set(0.35, 0.35, 1); sp.renderOrder = 70; sp.visible = false; scene.add(sp); return sp; });
+function updNadeWarn(){ let k = 0; camera.getWorldPosition(head); for (const p of props) { if (p.type !== 'frag' || !p.live || p.held || k >= nadeSpr.length) continue; const d = head.distanceTo(p.g.position); if (d > 12) continue; nadeSpr[k].position.copy(p.g.position).add(V3(0, 0.35, 0)); nadeSpr[k].visible = true; k++; if (d < 9 && (!p.wT || performance.now() - p.wT > 450)) { p.wT = performance.now(); dirHit(p.g.position, 0xffa000, 0.5); } } for (; k < nadeSpr.length; k++) nadeSpr[k].visible = false; }
+/* --- süstal, maas olek, kaaslased --- */
+function goDown(){ P.downed = true; P.downT = 12; P.hp = 0; cancelReload(); P.twoHand = false; P.downY = rig.position.y; if (renderer.xr.isPresenting) rig.position.y -= 0.8; msg('🩸 OLED MAAS! Võta 💉 süstal vasakult rinnalt ja torka endale! (arvutis F)', '#ff5252', 4); say('Olen maas! Süsti ennast!'); S.hurt(); for (const h of hands) pulse(h, 1, 400); }
+function restoreDownY(){ if (renderer.xr.isPresenting && P.downY != null) rig.position.y = P.downY; P.downY = null; }
+function applyStim(){ if (P.downed) { P.downed = false; restoreDownY(); P.hp = 60; msg('💉 ELUSTATUD! Tagasi lahingusse!', '#9cff57', 2.5); say('Olen jälle püsti'); } else { P.hp = P.maxHp; msg('💉 Elud täis!', '#9cff57', 1.5); } P.regenT = 0; S.stim(); hurtM.material.color.set(0x40ff90); hurtM.material.opacity = 0.35; }
+function reviveAlly(a){ a.downed = false; a.hp = 60; S.stim(); msg('💉 Kaaslane elustatud!', '#9cff57', 2); say('Aitäh!'); addXp(15); }
+function deskStim(){ if (mode !== 'play' && mode !== 'hub') return; if (P.stims <= 0) { msg('💉 Süstlad otsas – leia 📦 varustuskast', '#ff8a80', 1.5); S.bad(); return; } camera.getWorldPosition(head); const a = game && game.allies && game.allies.find(x => x.downed && !x.dead && Math.hypot(x.pos.x - head.x, x.pos.z - head.z) < 2.3); if (a) { P.stims--; reviveAlly(a); return; } if (!P.downed && P.hp >= P.maxHp) { msg('❤️ Elud on täis', '#b9c0a8', 1.2); return; } P.stims--; applyStim(); }
+function allyShoot(a, dt, range){ if (a.dead || a.downed || !a.m) return; a.shootT = (a.shootT || rand(1, 3)) - dt; if (a.shootT > 0) return; a.shootT = rand(1.4, 2.8); const mz = a.m.mz.getWorldPosition(V3()); const tgt = enemies.find(e => !e.dead && e.alert && e.pos.distanceTo(a.pos) < range && los(mz, e.pos.clone().add(V3(0, 1.2, 0)))); if (!tgt) return; a.yaw = Math.atan2(tgt.pos.x - a.pos.x, tgt.pos.z - a.pos.z) + Math.PI; a.m.g.rotation.y = a.yaw; tracer(mz, tgt.pos.clone().add(V3(0, 1.3, 0)), 0x9fd7ff); S.enemyShot(mz); if (Math.random() < 0.28) damageEnemy(tgt, 40, tgt.pos.clone().add(V3(0, 1.2, 0)), V3(0, 0, 1), 'body'); }
+/* --- nähtav keha ja taskud --- */
+const bodyG = new THREE.Group(); scene.add(bodyG);
+const POUCH = { mag1: V3(-0.12, -0.45, -0.16), mag2: V3(-0.02, -0.45, -0.16), stim: V3(-0.11, -0.2, -0.16), frag: V3(0.07, -0.2, -0.16), smoke: V3(0.18, -0.25, -0.14), holster: V3(0.24, -0.68, -0.02), back: V3(0.18, -0.02, 0.1), chest: V3(0, -0.22, -0.16), thigh: V3(-0.12, -0.85, -0.08), neck: V3(0, 0, -0.06) };
+const pouchMesh = {}, bodyLegs = [], stow = {};
+{ const vestB = std(0x3b4030, { roughness: 0.9 }), pm = std(0x4a5236, { roughness: 0.95 }), white = std(0xeeeeee);
+  const bb = (w, h, d, x, y, z, m, par = bodyG) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; par.add(b); return b; };
+  bb(0.36, 0.5, 0.2, 0, -0.33, 0.0, M.camo); bb(0.38, 0.36, 0.05, 0, -0.3, -0.115, vestB); bb(0.36, 0.36, 0.04, 0, -0.3, 0.115, vestB); bb(0.4, 0.07, 0.24, 0, -0.6, 0, M.dark);
+  for (const x of [-0.2, 0.2]) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), M.camo); s.position.set(x, -0.12, 0); bodyG.add(s); }
+  for (const [n, x] of [['mag1', -0.12], ['mag2', -0.02]]) { const g = new THREE.Group(); g.position.set(x, -0.47, -0.155); bodyG.add(g); bb(0.08, 0.11, 0.05, 0, 0, 0, pm, g); bb(0.03, 0.05, 0.045, -0.015, 0.07, 0, M.dark, g); bb(0.03, 0.05, 0.045, 0.02, 0.07, 0, M.dark, g); pouchMesh[n] = g; }
+  { const g = new THREE.Group(); g.position.set(-0.11, -0.21, -0.155); bodyG.add(g); bb(0.08, 0.08, 0.05, 0, 0, 0, pm, g); bb(0.05, 0.05, 0.004, 0, 0, -0.027, white, g); bb(0.036, 0.011, 0.004, 0, 0, -0.03, M.red, g); bb(0.011, 0.036, 0.004, 0, 0, -0.03, M.red, g); const sy = bb(0.018, 0.06, 0.018, 0.02, 0.06, 0, std(0xe8eef0), g); g.userData.item = sy; pouchMesh.stim = g; }
+  { const g = new THREE.Group(); g.position.set(0.07, -0.23, -0.155); bodyG.add(g); bb(0.07, 0.06, 0.05, 0, 0, 0, pm, g); const nd = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), M.olive); nd.position.y = 0.05; g.add(nd); g.userData.item = nd; pouchMesh.frag = g; }
+  { const g = new THREE.Group(); g.position.set(0.18, -0.27, -0.135); bodyG.add(g); bb(0.06, 0.08, 0.05, 0, 0, 0, pm, g); const cn = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.05, 10), std(0x9aa0a6)); cn.position.y = 0.06; g.add(cn); g.userData.item = cn; pouchMesh.smoke = g; }
+  { const g = new THREE.Group(); g.position.set(0.24, -0.7, -0.02); bodyG.add(g); bb(0.05, 0.14, 0.07, 0, 0, 0, M.dark, g); pouchMesh.holster = g; }
+  for (const x of [-0.1, 0.1]) { const lg = new THREE.Group(); lg.position.set(x, -0.64, 0); bodyG.add(lg); const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8), M.camo); t.position.y = -0.22; t.castShadow = true; lg.add(t); const kn = new THREE.Group(); kn.position.y = -0.44; lg.add(kn); const sh = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.28, 4, 8), M.camo); sh.position.y = -0.18; sh.castShadow = true; kn.add(sh); bb(0.11, 0.09, 0.24, 0, -0.4, -0.04, M.dark, kn); bodyLegs.push({ lg, kn }); }
+  for (const k of WORDER) { const s = buildGun(k); s.ammoP.mesh.visible = false; s.flashM.visible = false; if (s.lens) s.lens.visible = false; if (s.lensA) s.lensA.visible = false; s.g.visible = false; bodyG.add(s.g); if (k === 'pistol') { s.g.position.set(0.25, -0.62, -0.03); s.g.rotation.set(Math.PI / 2, 0, 0); } else { s.g.position.set(0.15, -0.3, 0.16); s.g.rotation.set(-Math.PI / 2 + 0.15, 0, -0.45); } stow[k] = s; }
+}
+function bodyPt(n){ return bodyG.localToWorld(POUCH[n].clone()); }
+function nearestPouch(p, r){ let best = null, bd = r; for (const n of ['mag1', 'mag2', 'stim', 'frag', 'smoke']) { const d = bodyPt(n).distanceTo(p); if (d < bd) { bd = d; best = n; } } return best; }
+function updBody(dt){
+  camera.getWorldPosition(head); camera.getWorldQuaternion(tmpQ);
+  let f = V3(0, 0, -1).applyQuaternion(tmpQ); if (Math.hypot(f.x, f.z) < 0.4) f = V3(0, 1, 0).applyQuaternion(tmpQ).multiplyScalar(f.y < 0 ? 1 : -1);
+  const hy = Math.atan2(-f.x, -f.z), diff = Math.atan2(Math.sin(hy - P.bodyYaw), Math.cos(hy - P.bodyYaw));
+  if (!renderer.xr.isPresenting) P.bodyYaw = hy; else { if (Math.abs(diff) > 0.75 || P.speed > 0) P.turning = true; if (P.turning) { P.bodyYaw += diff * Math.min(1, dt * 6); if (Math.abs(diff) < 0.05) P.turning = false; } }
+  bodyG.visible = renderer.xr.isPresenting; const neck = head.clone().sub(V3(0, 0.16, -0.07).applyQuaternion(tmpQ)); if (P.downed && !renderer.xr.isPresenting) neck.y = 0.6;
+  bodyG.position.copy(neck); bodyG.rotation.set(0, P.bodyYaw, 0);
+  const legLen = clamp(neck.y - (renderer.xr.isPresenting ? rig.position.y : (P.downed ? 0 : rig.position.y)) - 0.64, 0.15, 1.3), ls = legLen / 0.89, ph = performance.now() / 1000 * (P.speed > 3.5 ? 11 : 7);
+  bodyLegs.forEach((l, i) => { l.lg.scale.y = ls; const s = P.speed > 0 ? Math.sin(ph + i * Math.PI) * (P.speed > 3.5 ? 0.6 : 0.35) : 0; l.lg.rotation.x += (s - l.lg.rotation.x) * Math.min(1, dt * 12); l.kn.rotation.x = P.speed > 0 ? -Math.max(0, Math.sin(ph + i * Math.PI + 1.2)) * 0.6 : 0; });
+  pouchMesh.frag.userData.item.visible = P.frags > 0; pouchMesh.smoke.userData.item.visible = P.smokes > 0; pouchMesh.stim.userData.item.visible = P.stims > 0;
+  for (const k of WORDER) stow[k].g.visible = k === 'pistol' ? P.weapon !== 'pistol' : P.weapon === 'pistol' && k === P.prim;
+  bodyG.updateMatrixWorld(true);
+  // käsi tasku juures: tasku helendab + väike värin
+  for (const n in pouchMesh) pouchMesh[n].scale.setScalar(1);
+  if (renderer.xr.isPresenting) for (const h of hands) { if (!h.connected || h.held) continue; const hp = handPos(h, V3()); let n = h === L() ? nearestPouch(hp, 0.14) : null; if (!n && h === R()) n = hp.distanceTo(bodyPt('holster')) < 0.2 ? 'holster' : null; if (n) pouchMesh[n].scale.setScalar(1.3); if (n !== h.lastNear) { if (n) pulse(h, 0.25, 25); h.lastNear = n; } }
+}
+/* --- käte kõigutamisega jooksmine --- */
+let headPY = null, headVY = 0;
+function updSwing(dt){ camera.getWorldPosition(head); if (headPY != null) headVY += ((head.y - headPY) / Math.max(dt, 1e-3) - headVY) * 0.5; headPY = head.y; const l = L(), r = R(); let sw = 0; if (l && r && l !== r && !l.held && !P.twoHand) { const a = l.vel.y - headVY, b = r.vel.y - headVY; if (a * b < 0) sw = Math.min(Math.abs(a), Math.abs(b)); } P.swing += (sw - P.swing) * Math.min(1, dt * 4); }
+function swingSpeed(){ return P.swing > 0.45 && !P.downed ? clamp((P.swing - 0.3) * 4.5, 1.6, 6.5) : 0; }
+/* --- leitavad relvad, lisad ja varustuskastid --- */
+const pickups = [];
+const PICKS = [{ id: 'smg', kind: 'gun', x: -10.5, z: 14.2, y: 0 }, { id: 'holo', kind: 'att', x: 41, z: -12.5, y: 0 }, { id: 'supp', kind: 'att', x: 46.5, z: -19, y: 0 }, { id: 'acog', kind: 'att', x: CX + 17, z: CZ + 9.5, y: 0 }, { id: 'lmg', kind: 'gun', x: CX - 11.5, z: CZ + 9, y: 0 },
+  { id: 'sup', kind: 'sup', x: 4.5, z: -0.55, y: 0.99 }, { id: 'sup', kind: 'sup', x: CX + 2.5, z: CZ + 9, y: 0 }, { id: 'sup', kind: 'sup', x: CX + 17.5, z: CZ + 15, y: 6.2 }];
+for (const d of PICKS) {
+  const g = new THREE.Group(); g.position.set(d.x, d.y, d.z); scene.add(g); const top = d.y > 0.5 ? 0.02 : 0.82;
+  if (d.y < 0.5 && d.kind !== 'sup') { const t = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.05, 0.45), M.wood); t.position.y = 0.8; t.castShadow = t.receiveShadow = true; g.add(t); for (const [x, z] of [[-0.33, -0.18], [0.33, -0.18], [-0.33, 0.18], [0.33, 0.18]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.8, 0.04), M.wood); l.position.set(x, 0.4, z); g.add(l); } }
+  const item = new THREE.Group(); item.position.y = top + 0.04; g.add(item);
+  if (d.kind === 'gun') { const s = buildGun(d.id); s.ammoP.mesh.visible = false; s.flashM.visible = false; s.g.rotation.set(0, Math.PI / 2, Math.PI / 2); s.g.position.y = 0.03; item.add(s.g); }
+  if (d.kind === 'att') { const src = guns.rifle.att[d.id], c = src.clone(); c.visible = true; c.traverse(o => o.visible = true); const w = new THREE.Group(); w.add(c); c.position.set(0, d.id === 'supp' ? -0.04 : -0.1, d.id === 'supp' ? 0.6 : 0.06); w.scale.setScalar(2.2); w.position.y = 0.06; item.add(w); }
+  if (d.kind === 'sup') { const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), M.olive); b.position.y = 0.2; b.castShadow = true; item.position.y = d.y > 0.5 ? 0.02 : 0; item.add(b); const pl = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.01), std(0xeeeeee)); pl.position.set(0, 0.22, -0.205); item.add(pl); for (const [w, h] of [[0.14, 0.04], [0.04, 0.14]]) { const c = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.012), M.red); c.position.set(0, 0.22, -0.21); item.add(c); } }
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 30, 8, 1, true).translate(0, 15, 0), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.28, depthWrite: false, fog: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); beam.position.y = top; g.add(beam);
+  const lab = new Panel(0.7, 0.14, 400); lab.mesh.renderOrder = 50; lab.mesh.position.y = top + 0.5; g.add(lab.mesh);
+  const name = d.kind === 'gun' ? '🔫 ' + WEAPONS[d.id].n : d.kind === 'att' ? ATTN[d.id] : '📦 Varustus 💣💉🌫️';
+  const p = Object.assign({}, d, { g, item, beam, lab, name, cd: 0, c: V3(d.x, d.y + top + 0.1, d.z) });
+  p.refresh = () => { const f = d.kind !== 'sup' && save.found[d.id]; beam.visible = d.kind !== 'sup' && !f; lab.draw((c, W, H) => { roundRect(c, 4, 4, W - 8, H - 8, H * 0.3); c.fillStyle = 'rgba(10,14,10,0.75)'; c.fill(); txt(c, (f ? '' : '🔍 ') + name + (d.kind === 'sup' && p.cd > 0 ? ` (${Math.ceil(p.cd)} s)` : ''), W / 2, H / 2, H * 0.42, d.kind === 'sup' ? '#9cff57' : GOLD, 'bold'); }); };
+  p.refresh(); pickups.push(p);
+}
+function nearPickup(pos, r, horiz){ let best = null, bd = r; for (const p of pickups) { const d = horiz ? (Math.abs(pos.y - p.c.y) < 2.2 ? Math.hypot(pos.x - p.c.x, pos.z - p.c.z) : 99) : pos.distanceTo(p.c); if (d < bd) { bd = d; best = p; } } return best; }
+function takePickup(p, h){
+  const first = p.kind !== 'sup' && !save.found[p.id];
+  if (p.kind === 'gun') { save.found[p.id] = true; persist(); setWeapon(p.id); msg(first ? `🔫 LEIDSID: ${WEAPONS[p.id].n}! (nüüd ka relvaruumis)` : `🔫 ${WEAPONS[p.id].n} käes`, GOLD, 3); if (first) { S.ok(); addXp(40); say('Uus relv leitud'); } }
+  if (p.kind === 'att') { save.found[p.id] = true; const tgt = p.id === 'supp' ? (canSupp(P.weapon) ? P.weapon : canSupp(P.prim) ? P.prim : null) : canSight(P.prim) ? P.prim : null;
+    if (tgt) { const a = save.att[tgt] || {}; if (p.id === 'supp') a.supp = true; else a.sight = p.id; save.att[tgt] = a; applyAtt(tgt); msg(`✔ ${ATTN[p.id]} → ${WEAPONS[tgt].n}`, GOLD, 3); } else msg(`✔ ${ATTN[p.id]} leitud! Paigalda relvaruumis`, GOLD, 3); persist(); if (first) { S.ok(); addXp(30); say('Leidsid lisa'); } else S.click(); }
+  if (p.kind === 'sup') { if (p.cd > 0) { msg(`📦 Tühi – uus varustus ${Math.ceil(p.cd)} s pärast`, '#ff8a80', 1.5); S.bad(); return; } p.cd = 45; P.frags = Math.max(P.frags, 3); P.smokes = Math.max(P.smokes, 2); P.stims = Math.max(P.stims, 3); if (!P.downed) P.hp = P.maxHp; msg('📦 Varustus täiendatud: 💣 💉 🌫️', '#9cff57', 2); S.ok(); }
+  p.refresh(); if (h) pulse(h, 0.7, 60);
+}
+let lastHintP = null;
+function updPickups(dt){
+  camera.getWorldPosition(head); const t = performance.now() / 1000;
+  for (const p of pickups) { if (p.cd > 0) { const c0 = Math.ceil(p.cd); p.cd -= dt; if (Math.ceil(p.cd) !== c0) p.refresh(); } const d = head.distanceTo(p.c); p.lab.mesh.visible = d < 8; if (p.lab.mesh.visible) p.lab.mesh.lookAt(head); if (p.beam.visible) p.beam.material.opacity = 0.2 + Math.sin(t * 3) * 0.08; if (p.kind === 'att') p.item.rotation.y += dt * 0.8; }
+  if (!renderer.xr.isPresenting && (mode === 'play' || mode === 'hub')) { const p = nearPickup(head, 2.3, true); if (p && p !== lastHintP) msg(`E = võta: ${p.name}`, GOLD, 2); lastHintP = p; }
+  else if (renderer.xr.isPresenting) for (const h of hands) { if (!h.connected || h.held) continue; const p = nearPickup(handPos(h, V3()), 0.32); if (p !== h.lastPick) { if (p) { pulse(h, 0.3, 30); msg(`✊ Haara (külgnupp): ${p.name}`, GOLD, 1.5); } h.lastPick = p; } }
+}
+
 /* ===================== HUD ===================== */
 let hudKey = '';
 function drawHud(line){
-  const g = guns[P.weapon], key = `${Math.ceil(P.hp)}|${Math.ceil(P.armor)}|${g.ammo}|${P.frags}|${P.smokes}|${line}|${P.weapon}`; if (key === hudKey) return; hudKey = key;
+  const g = guns[P.weapon]; if (P.downed) line = `🩸 OLED MAAS! Süsti 💉 ${Math.ceil(P.downT)} s`; const key = `${Math.ceil(P.hp)}|${Math.ceil(P.armor)}|${g.ammo}|${P.frags}|${P.smokes}|${P.stims}|${line}|${P.weapon}|${g.hasMag}`; if (key === hudKey) return; hudKey = key;
   hudP.draw((c, W, H) => { roundRect(c, 4, 4, W - 8, H - 8, 20); c.fillStyle = 'rgba(10,14,10,0.6)'; c.fill(); const hp = P.hp / P.maxHp; c.fillStyle = '#333'; c.fillRect(W * 0.04, H * 0.18, W * 0.3, H * 0.2); c.fillStyle = hp > 0.5 ? '#7cbf5a' : hp > 0.25 ? '#e0b030' : '#e53935'; c.fillRect(W * 0.04, H * 0.18, W * 0.3 * hp, H * 0.2); if (P.armor > 0) { c.fillStyle = '#64b5f6'; c.fillRect(W * 0.04, H * 0.42, W * 0.3 * P.armor / 50, H * 0.08); }
-    txt(c, `${WEAPONS[P.weapon].n} ${g.hasMag ? g.ammo : '–'}/${g.def.mag}`, W * 0.55, H * 0.3, H * 0.22, g.ammo ? '#e8eadf' : '#ff5252'); txt(c, `💣${P.frags} 🌫️${P.smokes}`, W * 0.88, H * 0.3, H * 0.2); txt(c, line || '', W / 2, H * 0.72, H * 0.2, GOLD); });
+    txt(c, `${{ rifle: 'Automaat', pistol: 'Püstol', smg: 'PKP', shotgun: 'Haavel', lmg: 'KP', sniper: 'Snaiper' }[P.weapon]} ${g.hasMag ? g.ammo : '–'}/${g.def.mag}`, W * 0.5, H * 0.3, H * 0.19, g.ammo ? '#e8eadf' : '#ff5252'); txt(c, `💣${P.frags} 🌫️${P.smokes} 💉${P.stims}`, W * 0.85, H * 0.3, H * 0.15); txt(c, line || '', W / 2, H * 0.72, H * 0.2, P.downed ? '#ff5252' : GOLD); });
 }
 
 /* ===================== SESSIOON JA TSÜKKEL ===================== */
@@ -984,7 +1193,7 @@ renderer.setAnimationLoop(() => {
   if (renderer.xr.isPresenting) readXR(dt);
   else {
     let mx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), my = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0);
-    P.crouch = !!(keys.KeyC || keys.ControlLeft); camera.position.y += ((P.crouch ? 1.0 : 1.65) - camera.position.y) * Math.min(1, dt * 10);
+    P.crouch = !!(keys.KeyC || keys.ControlLeft); camera.position.y += ((P.downed ? 0.45 : P.crouch ? 1.0 : 1.65) - camera.position.y) * Math.min(1, dt * 10);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
     if (mode === 'play' || mode === 'hub') movePlayer(mx, my, dt, keys.ShiftLeft ? 4.5 : P.ads ? 1.3 : 2.6);
     if ((mode === 'play' || mode === 'hub') && mouseDown && !menuOpen() && document.pointerLockElement) { const w = WEAPONS[P.weapon]; if (w.auto || !P.semiLock) { fire(); P.semiLock = true; } } if (!mouseDown) P.semiLock = false;
@@ -997,7 +1206,7 @@ renderer.setAnimationLoop(() => {
     const btnMeshes = buttons.filter(b => isShown(b.p.mesh)).map(b => b.p.mesh);
     for (const h of hands) {
       h.ray.visible = false; if (!h.connected) continue;
-      const hp = handPos(h, V3()); if (h.hasPrev) h.vel.lerp(tmpD.copy(hp).sub(h.prev).divideScalar(Math.max(dt, 1e-3)), 0.5); h.prev.copy(hp); h.hasPrev = true;
+      const hp = handPos(h, V3()); (h.hist || (h.hist = [])).push({ p: hp.clone(), t: performance.now() }); if (h.hist.length > 10) h.hist.shift(); if (h.hasPrev) h.vel.lerp(tmpD.copy(hp).sub(h.prev).divideScalar(Math.max(dt, 1e-3)), 0.5); h.prev.copy(hp); h.hasPrev = true;
       if (h.isHand) handGestures(h);
       let hov = null; if (btnMeshes.length) { h.ctrl.getWorldPosition(tmpV); h.ctrl.getWorldQuaternion(tmpQ); const rc = new THREE.Raycaster(tmpV, V3(0, 0, -1).applyQuaternion(tmpQ), 0, 5); const hit = rc.intersectObjects(btnMeshes, false)[0]; if (hit) { hov = hit.object.userData.btn; h.ray.visible = true; h.ray.scale.set(1, 1, hit.distance); } }
       if (hov !== h.hover) { if (h.hover) { h.hover.hover = false; h.hover.draw(); } h.hover = hov; if (hov) { hov.hover = true; hov.draw(); } }
@@ -1007,17 +1216,19 @@ renderer.setAnimationLoop(() => {
     if (rh && (mode === 'play' || mode === 'hub')) { const w = WEAPONS[P.weapon]; if ((rh.trig || rh.selTrig) && !rh.hover) { if (w.auto || !rh.semiLock) { fire(); rh.semiLock = true; } } else rh.semiLock = false; }
     checkMagInsert(); updTeleport();
     // käe juhised
-    const lh = L(); if (lh && !lh.held && (mode === 'play' || mode === 'hub')) { const hp = handPos(lh, V3()); const near = hp.distanceTo(bodyPoint(-0.2, -0.65, 0.05)) < 0.22 ? '🔋 Salv' : hp.distanceTo(bodyPoint(-0.1, -0.35, 0.18)) < 0.18 ? '💣 Granaat' : hp.distanceTo(bodyPoint(0.1, -0.35, 0.18)) < 0.18 ? '🌫️ Suits' : null; if (near && near !== lh.lastNear) pulse(lh, 0.2, 20); lh.lastNear = near; }
+    updSwing(dt);
   }
   P.cool -= dt;
   if (game && game.onShot && P.lastAmmo != null && guns[P.weapon] && guns[P.weapon].ammo < P.lastAmmo) game.onShot(); P.lastAmmo = guns[P.weapon] ? guns[P.weapon].ammo : null;
-  updateWeapon(dt);
+  updBody(dt); updateWeapon(dt); updPickups(dt); updDir(dt); updNadeWarn();
   if (mode === 'play') {
     game.t += dt; const line = game.tick ? game.tick(game, dt) : ''; updateEnemies(dt); drawHud(line);
-    if (!P.dead) { P.regenT -= dt; if (P.regenT <= 0 && P.hp < P.maxHp) P.hp = Math.min(P.maxHp, P.hp + 25 * dt); }
+    if (!P.dead && !P.downed) { P.regenT -= dt; if (P.regenT <= 0 && P.hp < P.maxHp) P.hp = Math.min(P.maxHp, P.hp + 25 * dt); }
+    if (P.downed) { P.downT -= dt; hurtM.material.color.set(0x550000); hurtM.material.opacity = 0.45 + Math.sin(game.t * 4) * 0.08; if (P.downT <= 0) { P.downed = false; restoreDownY(); P.dead = true; endGame(false, '❌ Sa ei jõudnud süstida'); } }
+    if (P.hp < 40 && !P.downed || P.speed > 4) { P.brT -= dt; if (P.brT <= 0) { P.brT = P.hp < 40 ? 1.7 : 1.4; S.breath(); } }
   } else if (mode === 'hub') { updateEnemies(dt); }
   updProps(dt); updTargets(dt); updAtmos(dt); if (mode === 'play') updStreaks(dt); updParticles(dt); updTracers(dt);
-  hurtM.material.opacity = Math.max(0, hurtM.material.opacity - dt * 0.6 * (P.hp > 30 ? 1 : 0.3));
+  if (!P.downed) hurtM.material.opacity = Math.max(0, hurtM.material.opacity - dt * 0.6 * (P.hp > 30 ? 1 : 0.3));
   for (const p of pops) if (p.p.mesh.visible) { p.t -= dt; p.p.mesh.position.y += dt * 0.4; camera.getWorldPosition(head); p.p.mesh.lookAt(head); p.p.mesh.material.opacity = clamp(p.t, 0, 1); if (p.t <= 0) p.p.mesh.visible = false; }
   if (msgP.mesh.visible) { msgT -= dt; msgP.mesh.material.opacity = clamp(msgT * 2, 0, 1); if (msgT <= 0) msgP.mesh.visible = false; }
   if (window._flag) window._flag.rotation.y = Math.sin(T * 2) * 0.15;
@@ -1028,7 +1239,7 @@ renderer.setAnimationLoop(() => {
   pMat.uniforms.uScale.value = renderer.xr.isPresenting ? 900 : renderer.domElement.height / 2 * camera.projectionMatrix.elements[5];
   renderer.render(scene, camera);
 });
-window.__el = { startMission, useStreak, shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
+window.__el = { applyAtt, takePickup, pickups, bodyPt, startReload, applyStim, goDown, props, enemyNade, startMission, useStreak, shootRay, startGame, rangeDrill, killhouse, waves, toHub, spawnEnemy, enemies, P, guns, fire, get game(){ return game; }, save, explode, setWeapon };
 </script>
 </body>
 </html>
