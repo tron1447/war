@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el12';
+window.GAME_VERSION = 'el13';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,7 +21,7 @@ window.GAME_VERSION = 'el12';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el12)</span><br>
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el13)</span><br>
   Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = laadi, B = vaheta relva. Võta asjad KEHALT külgnupuga: salvid vasakult vöölt, 🔪 nuga paremalt vöölt, granaat/suits paremalt rinnalt, 💉 süstal vasakult rinnalt (vii rinnale = ravi), püstol paremalt puusalt, põhirelv üle parema õla. Kõiguta käsi nagu jooksed = jookse! Vasak juhtkang sisse (või raadio vasakul õlal) = 📻 raadio. 🔪 Nuga rinnal keskel. Y = paus.<br>
   Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1</b> = põhirelv, <b>2</b> = püstol, <b>E</b> = võta ese, <b>F</b> = 💉 süstal, <b>G</b> = plahvatav granaat, <b>H</b> = abigranaat, <b>B</b> = lõhka C4, <b>C</b> = kükita, <b>V</b> = 📻 raadio, <b>K</b> = 🔪 torka, <b>T</b> = 🔪 viska, <b>X</b> = 💥 välkgranaat, <b>Esc</b> = menüü.
 </div>
@@ -692,11 +692,38 @@ function killEnemy(e, dir, part){
   if (Math.random() < 0.2) { const al = allyList().find(a => !a.dead && !a.downed && a.m); if (al) allyTalk(al, pick(['Hea lask, Hunt!', 'Üks vähem!', 'Tabasid ta!'])); }
 }
 function alertEnemies(p, r){ for (const e of enemies) if (!e.dead && !e.alert && e.pos.distanceTo(p) < r) { e.alert = true; e.state = 'engage'; e.cool = DIFF[save.diff].react + rand(0, 0.5); } }
+/* --- 🧭 navigatsioon: ruudustik + A* (vastased ja kaaslased ei jää kinni) --- */
+const NAV = { x0: -118, z0: -96, cs: 0.5, W: 950, H: 384, g: null };
+function navBuild(){ const N = NAV, W = N.W, H = N.H, g = new Uint8Array(W * H), doorC = new Set((typeof DOORS !== 'undefined' ? DOORS : []).map(d => d.c)), lim = COL_BASE || COL.length, inf = 0.28;
+  for (let i = 0; i < lim; i++) { const c = COL[i]; if (doorC.has(c) || c.y0 > 1.5 || c.y1 < 0.3) continue; const x0 = Math.max(0, Math.floor((c.x0 - inf - N.x0) / N.cs)), x1 = Math.min(W - 1, Math.floor((c.x1 + inf - N.x0) / N.cs)), z0 = Math.max(0, Math.floor((c.z0 - inf - N.z0) / N.cs)), z1 = Math.min(H - 1, Math.floor((c.z1 + inf - N.z0) / N.cs)); for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) g[z * W + x] = 1; }
+  if (typeof DOORS !== 'undefined') for (const d of DOORS) { const hw = d.alongX ? 0.5 : 0.75, hd = d.alongX ? 0.75 : 0.5; for (let z = Math.floor((d.z - hd - N.z0) / N.cs); z <= Math.floor((d.z + hd - N.z0) / N.cs); z++) for (let x = Math.floor((d.x - hw - N.x0) / N.cs); x <= Math.floor((d.x + hw - N.x0) / N.cs); x++) if (x >= 0 && z >= 0 && x < W && z < H) g[z * W + x] = 0; }
+  N.g = g; N.stamp = new Uint32Array(W * H); N.gs = new Float32Array(W * H); N.came = new Int32Array(W * H); N.cur = 0; }
+const navCell = (x, z) => [Math.floor((x - NAV.x0) / NAV.cs), Math.floor((z - NAV.z0) / NAV.cs)];
+function navFree(x, z){ const [cx, cz] = navCell(x, z); if (cx < 0 || cz < 0 || cx >= NAV.W || cz >= NAV.H) return true; return !NAV.g[cz * NAV.W + cx]; }
+function navLine(ax, az, bx, bz){ if (!NAV.g) navBuild(); const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 0.25); for (let i = 1; i <= n; i++) { const t = i / n; if (!navFree(ax + (bx - ax) * t, az + (bz - az) * t)) return false; } return true; }
+function navPath(sx, sz, gx, gz){ if (!NAV.g) navBuild(); const N = NAV, W = N.W, H = N.H, G = N.g; let [ax, az] = navCell(sx, sz), [bx, bz] = navCell(gx, gz); if (ax < 0 || az < 0 || bx < 0 || bz < 0 || ax >= W || bx >= W || az >= H || bz >= H) return null;
+  const nearFree = (x, z) => { if (!G[z * W + x]) return [x, z]; for (let r = 1; r < 6; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { const X = x + dx, Z = z + dz; if (X >= 0 && Z >= 0 && X < W && Z < H && !G[Z * W + X]) return [X, Z]; } return null; };
+  const s0 = nearFree(ax, az), g0 = nearFree(bx, bz); if (!s0 || !g0) return null; [ax, az] = s0; [bx, bz] = g0;
+  const st = ++N.cur, start = az * W + ax, goal = bz * W + bx, hp = [], hf = []; const h = i => { const x = i % W, z = (i / W) | 0, dx = Math.abs(x - bx), dz = Math.abs(z - bz); return (dx + dz) + (1.414 - 2) * Math.min(dx, dz); };
+  const push = (i, f) => { hp.push(i); hf.push(f); let k = hp.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (hf[p] <= hf[k]) break; [hp[p], hp[k]] = [hp[k], hp[p]]; [hf[p], hf[k]] = [hf[k], hf[p]]; k = p; } };
+  const pop = () => { const top = hp[0], li = hp.pop(), lf = hf.pop(); if (hp.length) { hp[0] = li; hf[0] = lf; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hp.length && hf[l] < hf[m]) m = l; if (r < hp.length && hf[r] < hf[m]) m = r; if (m === k) break; [hp[m], hp[k]] = [hp[k], hp[m]]; [hf[m], hf[k]] = [hf[k], hf[m]]; k = m; } } return top; };
+  N.stamp[start] = st; N.gs[start] = 0; N.came[start] = -1; push(start, h(start)); let it = 0, found = false; const closed = new Set();
+  while (hp.length && it++ < 20000) { const cur = pop(); if (cur === goal) { found = true; break; } if (closed.has(cur)) continue; closed.add(cur); const cx = cur % W, cz = (cur / W) | 0, gc = N.gs[cur];
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dz) continue; const X = cx + dx, Z = cz + dz; if (X < 0 || Z < 0 || X >= W || Z >= H) continue; const ni = Z * W + X; if (G[ni]) continue; if (dx && dz && (G[cz * W + X] || G[Z * W + cx])) continue; const ng = gc + (dx && dz ? 1.414 : 1); if (N.stamp[ni] === st && ng >= N.gs[ni]) continue; N.stamp[ni] = st; N.gs[ni] = ng; N.came[ni] = cur; push(ni, ng + h(ni)); } }
+  if (!found) return null; const pts = []; for (let i = goal; i !== -1 && pts.length < 5000; i = N.came[i]) pts.push([N.x0 + (i % W + 0.5) * N.cs, N.z0 + (((i / W) | 0) + 0.5) * N.cs]); pts.reverse();
+  const out = [pts[0]]; let k = 0; while (k < pts.length - 1) { let j = pts.length - 1; while (j > k + 1 && !navLine(pts[k][0], pts[k][1], pts[j][0], pts[j][1])) j--; out.push(pts[j]); k = j; } return out; }
+function stepToward(e, tx, tz, sp, dt){ const dx = tx - e.pos.x, dz = tz - e.pos.z, d = Math.hypot(dx, dz); if (d < 0.05) return; const a = Math.atan2(dx, dz), step = Math.min(d, sp * dt * (e.stun > 0 ? 0.3 : 1)); e.lastSp = sp;
+  for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6]) { const nx = e.pos.x + Math.sin(a + off) * step, nz = e.pos.z + Math.cos(a + off) * step; if (!blockedAt(nx, nz, 0.28, e.pos.y + 0.3, e.pos.y + 1.6)) { e.pos.x = nx; e.pos.z = nz; const ty = a + off + Math.PI; e.yaw += Math.atan2(Math.sin(ty - e.yaw), Math.cos(ty - e.yaw)) * Math.min(1, dt * 10); return; } } }
 function moveEnemy(e, gx, gz, sp, dt){
-  const dx = gx - e.pos.x, dz = gz - e.pos.z, d = Math.hypot(dx, dz); if (d < 0.15) return true;
-  let a = Math.atan2(dx, dz); const step = Math.min(d, sp * dt * (e.stun > 0 ? 0.3 : 1)); e.lastSp = sp;
-  for (const off of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) { const nx = e.pos.x + Math.sin(a + off) * step, nzv = e.pos.z + Math.cos(a + off) * step; if (!blockedAt(nx, nzv, 0.3, e.pos.y + 0.3, e.pos.y + 1.6)) { e.pos.x = nx; e.pos.z = nzv; e.yaw = a + off + Math.PI; return false; } }
-  return false;
+  const d = Math.hypot(gx - e.pos.x, gz - e.pos.z); if (d < 0.3) { e.path = null; return true; }
+  let tx = gx, tz = gz;
+  if (e.pos.y < 0.5 && !navLine(e.pos.x, e.pos.z, gx, gz)) {
+    e.pathT = (e.pathT || 0) - dt;
+    if (!e.path || e.pathT <= 0 || Math.hypot(e.pathG[0] - gx, e.pathG[1] - gz) > 1.5) { e.path = navPath(e.pos.x, e.pos.z, gx, gz); e.pathG = [gx, gz]; e.pathT = rand(1.5, 2.5); e.pi2 = 0; if (!e.path) e.noPath = (e.noPath || 0) + 1; else e.noPath = 0; }
+    if (e.path && e.path.length > 1) { while (e.pi2 < e.path.length - 1 && (Math.hypot(e.path[e.pi2][0] - e.pos.x, e.path[e.pi2][1] - e.pos.z) < 0.45 || navLine(e.pos.x, e.pos.z, e.path[e.pi2 + 1][0], e.path[e.pi2 + 1][1]))) e.pi2++; tx = e.path[e.pi2][0]; tz = e.path[e.pi2][1]; }
+  } else e.path = null;
+  const sk = e.stk || (e.stk = { t: 0, x: e.pos.x, z: e.pos.z }); sk.t += dt; if (sk.t > 1.2) { if (Math.hypot(e.pos.x - sk.x, e.pos.z - sk.z) < 0.25) { e.stuck = (e.stuck || 0) + 1; e.path = null; e.pathT = 0; } else e.stuck = 0; sk.t = 0; sk.x = e.pos.x; sk.z = e.pos.z; }
+  stepToward(e, tx, tz, sp, dt); return false;
 }
 function playerHead(out){ return camera.getWorldPosition(out); }
 function updateEnemies(dt){
@@ -722,9 +749,9 @@ function updateEnemies(dt){
       g.position.copy(e.pos).setY(e.pos.y + Math.abs(Math.sin(e.t * 6)) * 0.03 * (e.patrol ? 1 : 0)); g.rotation.set(0, e.yaw, 0); animLegs(e, !!e.patrol, dt); animSoldier(e, dt, { alert: false, moving: !!e.patrol }); continue;
     }
     // vali vari
-    if (!e.static && (!e.cover || e.coverT <= 0)) {
+    if (!e.static && (!e.cover || e.coverT <= 0 || (e.stuck || 0) > 2 || (e.noPath || 0) > 1)) { if ((e.stuck || 0) > 2 || (e.noPath || 0) > 1) { e.badCover = e.cover; e.stuck = 0; e.noPath = 0; }
       const tgt = e.lastSeen || ph; let best = null, bs = 1e9;
-      for (const c of COVER) { const d = Math.hypot(c.x - e.pos.x, c.z - e.pos.z); if (d > 18 || Math.abs(e.pos.y) > 0.5) continue; const toP = Math.hypot(tgt.x - c.x, tgt.z - c.z); if (toP < 5) continue; const facingP = ((tgt.x - c.x) * c.nx + (tgt.z - c.z) * c.nz) / toP; if (facingP < 0.3) continue; if (enemies.some(o => o !== e && o.cover === c && !o.dead)) continue; const score = d + toP * (game && game.push ? 0.6 : 0.15) + rand(0, 3); if (score < bs) { bs = score; best = c; } }
+      for (const c of COVER) { if (c === e.badCover) continue; const d = Math.hypot(c.x - e.pos.x, c.z - e.pos.z); if (d > 18 || Math.abs(e.pos.y) > 0.5) continue; const toP = Math.hypot(tgt.x - c.x, tgt.z - c.z); if (toP < 5) continue; const facingP = ((tgt.x - c.x) * c.nx + (tgt.z - c.z) * c.nz) / toP; if (facingP < 0.3) continue; if (enemies.some(o => o !== e && o.cover === c && !o.dead)) continue; const score = d + toP * (game && game.push ? 0.6 : 0.15) + rand(0, 3); if (score < bs) { bs = score; best = c; } }
       e.cover = best; e.coverT = rand(6, 12);
     }
     e.coverT -= dt;
@@ -740,12 +767,12 @@ function updateEnemies(dt){
     // piilu ja tulista
     const atCover = e.cover && !moving;
     if (atCover && e.cover.low) { e.peek -= dt; if (e.peek < -2.2) e.peek = rand(1.5, 2.8); e.crouchK = e.peek > 0 ? 0 : 1; } else e.crouchK = 0;
-    const face = Math.atan2(tgtP.x - e.pos.x, tgtP.z - e.pos.z) + Math.PI; e.yaw += Math.atan2(Math.sin(face - e.yaw), Math.cos(face - e.yaw)) * Math.min(1, dt * 6);
+    const face = Math.atan2(tgtP.x - e.pos.x, tgtP.z - e.pos.z) + Math.PI, fdiff = Math.atan2(Math.sin(face - e.yaw), Math.cos(face - e.yaw)); if (!moving || sees || ally) e.yaw += fdiff * Math.min(1, dt * 9);
     e.cool -= dt;
     e.reloadT = Math.max(0, e.reloadT - dt); e.throwT = Math.max(0, e.throwT - dt); e.nadeT -= dt;
     if (e.nades > 0 && e.nadeT <= 0 && !e.reloadT && !ally && (e.lastSeen || sees) && !P.downed && game) { const tg = (e.lastSeen || ph).clone(); const d2 = Math.hypot(tg.x - e.pos.x, tg.z - e.pos.z); if (d2 > 7 && d2 < 24 && (!sees || Math.random() < 0.35)) enemyNade(e, tg); else e.nadeT = rand(3, 7); }
     if (e.reloadT > 0) { e.m.gun.rotation.set(0.5 * Math.sin(Math.min(1, e.reloadT / 2.4) * Math.PI), 0, 0.7 * Math.sin(Math.min(1, e.reloadT / 2.4) * Math.PI)); } else if (e.throwT > 0) e.m.gun.rotation.set(-0.8 * Math.sin(e.throwT / 0.6 * Math.PI), 0, 0); else e.m.gun.rotation.set(0, 0, 0);
-    if ((sees || ally) && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0 && !e.reloadT && !e.throwT) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ally ? tgtP : ph, ally ? eye.distanceTo(tgtP) : dist, moving, ally); }
+    if ((sees || ally) && e.cool <= 0 && e.crouchK < 0.5 && e.flinch <= 0 && !e.reloadT && !e.throwT && Math.abs(fdiff) < 0.3) { if (e.burst <= 0) e.burst = Math.floor(rand(2, 5)); e.burst--; e.cool = e.burst > 0 ? 0.12 : rand(0.9, 2.0) * (1.4 - save.diff * 0.25); enemyShoot(e, ally ? tgtP : ph, ally ? eye.distanceTo(tgtP) : dist, moving, ally); }
     const run = moving && (e.lastSp || 0) > 2; g.position.copy(e.pos); g.position.y += moving ? Math.abs(Math.sin(e.ph * 2)) * (run ? 0.05 : 0.025) : 0; g.rotation.set(run && !e.m.up ? -0.14 : 0, e.yaw, 0, 'YXZ'); animLegs(e, moving, dt, run); animSoldier(e, dt, { alert: true, moving, run, pitch: Math.atan2(tgtP.y - (e.pos.y + 1.4), Math.hypot(tgtP.x - e.pos.x, tgtP.z - e.pos.z) + 0.01) });
     if (e.m.glb) { e.ck = (e.ck || 0) + ((moving ? 0 : e.crouchK || 0) - (e.ck || 0)) * Math.min(1, dt * 8); g.scale.y = 1 - e.ck * 0.32; } else if (!e.m.up) g.scale.y = 1 - (e.crouchK || 0) * 0.35; else g.position.y -= (e.ck || 0) * 0.38;
   }
@@ -934,7 +961,7 @@ function flyJet(from, to, bombAt){ jet.visible = true; jetT = 0; jetFrom.copy(fr
 function updJet(dt){ if (!jet.visible) return; jetT += dt / 4; jet.position.lerpVectors(jetFrom, jetTo, jetT); if (jetBomb && jetT > 0.45) { const b = jetBomb; jetBomb = null; b.forEach((p, i) => setTimeout(() => explode(p, true), 500 + i * 220)); } if (jetT >= 1) jet.visible = false; }
 const intel = () => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.7), M.wood); t.position.y = 0.9; g.add(t); for (const [x, z] of [[-0.55, -0.3], [0.55, -0.3], [-0.55, 0.3], [0.55, 0.3]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.05), M.wood); l.position.set(x, 0.45, z); g.add(l); } const lb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), M.dark); lb.position.y = 0.94; g.add(lb); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.2), new THREE.MeshBasicMaterial({ color: 0x55ff99 })); sc.position.set(0, 1.04, -0.11); sc.rotation.x = -0.25; g.add(sc); const sb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), M.dark); sb.position.set(0, 1.04, -0.125); sb.rotation.x = -0.25; g.add(sb); missionG.add(g); return g; };
 function makeAlly(x, z, kind = 'ally'){ const m = makeEnemyMesh(kind); extraMeshes.push(m.g); const a = { m, pos: V3(x, 0, z), hp: 100, dead: false, t: rand(0, 5), yaw: Math.PI, h: 1.3 }; a.hurt = d => { if (a.dead) return; a.hp -= d; for (let i = 0; i < 4; i++) emit(a.pos.clone().add(V3(0, 1.2, 0)), V3(rand(-1, 1), rand(0, 1), rand(-1, 1)), 0x6b5a4a, 0.03, 0.4, -5); if (a.hp <= 0 && !a.downed) { a.downed = true; a.downT = 30; a.hp = 0; msg('❗ Kaaslane on maas! Tiri ta varju ja elusta 💉 süstlaga', '#ff8a80', 3); addDragFor(a); allyTalk(a, 'Olen pihtas! Hunt, aita mind!', true); } }; m.g.position.copy(a.pos); return a; }
-function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.downed && !a.dead) { a.downT -= dt; g.rotation.set(-Math.PI / 2 * 0.9, a.yaw, 0.4, 'YXZ'); g.position.copy(a.pos); g.position.y = 0.25; a.markT = (a.markT || 0) - dt; if (a.markT <= 0) { a.markT = 1.5; popTxt(a.pos.clone().add(V3(0, 1, 0)), `💉 ELUSTA ${Math.ceil(a.downT)}`, '#ff8a80'); } if (a.downT <= 0) { a.dead = true; msg('❗ Kaaslane langes!', '#ff8a80', 2); } return false; } if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; a.ph = a.ph || 0; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { const st = Math.min(d, speed * dt), a0 = Math.atan2(dx, dz); let ok = false; for (const off of [0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9]) { const nx = a.pos.x + Math.sin(a0 + off) * st, nz = a.pos.z + Math.cos(a0 + off) * st; if (!blockedAt(nx, nz, 0.3, a.pos.y + 0.3, a.pos.y + 1.6)) { a.pos.x = nx; a.pos.z = nz; a.yaw = a0 + off + Math.PI; ok = true; break; } } if (!ok) { a.pos.x += dx / d * st * 0.15; a.pos.z += dz / d * st * 0.15; } moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.ph * 2)) * 0.03 : 0; g.rotation.set(0, a.yaw, 0); if (a.m.legs) { animLegs(a, moving, dt, speed > 2); animSoldier(a, dt, { alert: !moving, moving, pitch: 0 }); } return moving; }
+function updAlly(a, dt, goal, speed){ a.t += dt; const g = a.m.g; if (a.downed && !a.dead) { a.downT -= dt; g.rotation.set(-Math.PI / 2 * 0.9, a.yaw, 0.4, 'YXZ'); g.position.copy(a.pos); g.position.y = 0.25; a.markT = (a.markT || 0) - dt; if (a.markT <= 0) { a.markT = 1.5; popTxt(a.pos.clone().add(V3(0, 1, 0)), `💉 ELUSTA ${Math.ceil(a.downT)}`, '#ff8a80'); } if (a.downT <= 0) { a.dead = true; msg('❗ Kaaslane langes!', '#ff8a80', 2); } return false; } if (a.dead) { g.rotation.set(-Math.PI / 2 * Math.min(1, (a.deadT = (a.deadT || 0) + dt) * 2), a.yaw, 0, 'YXZ'); g.position.y = 0.2; return false; } let moving = false; a.ph = a.ph || 0; if (goal) { const dx = goal.x - a.pos.x, dz = goal.z - a.pos.z, d = Math.hypot(dx, dz); if (d > 0.3) { moveEnemy(a, goal.x, goal.z, speed, dt); moving = true; } } g.position.copy(a.pos); g.position.y += moving ? Math.abs(Math.sin(a.ph * 2)) * 0.03 : 0; g.rotation.set(0, a.yaw, 0); if (a.m.legs) { animLegs(a, moving, dt, speed > 2); animSoldier(a, dt, { alert: !moving && !a.relaxed, moving, run: speed > 3, pitch: 0 }); } return moving; }
 // objektiivid
 function objTick(g, dt){
   if (g.oi == null) { g.oi = 0; }
@@ -1240,7 +1267,7 @@ function updateWeapon(dt){
   // laadimine (taimer)
   updReload(g, dt);
   // snaipri sihiku pilt
-  if (g.lens && renderer.xr.isPresenting && (P.scopeF = (P.scopeF || 0) + 1) % 2 === 0 && g.lens.getWorldPosition(tmpV).distanceTo(camera.getWorldPosition(head)) < 0.25) { g.lens.getWorldPosition(scopeCam.position); if (Math.abs(scopeCam.fov - 75 / g.zoom) > 0.01) { scopeCam.fov = 75 / g.zoom; scopeCam.updateProjectionMatrix(); } g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
+  if (g.lens && renderer.xr.isPresenting && g.lens.getWorldPosition(tmpV).distanceTo(camera.getWorldPosition(head)) < 0.35) { g.lens.getWorldPosition(scopeCam.position); if (Math.abs(scopeCam.fov - 75 / g.zoom) > 0.01) { scopeCam.fov = 75 / g.zoom; scopeCam.updateProjectionMatrix(); } g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
 }
 // sihiku ristnitkud tekstuuri peale
 scopeRT.texture.colorSpace = THREE.SRGBColorSpace;
@@ -1896,27 +1923,33 @@ const BRX = 0, BRZ = 75; const briefScr = new Panel(3.4, 1.9, 260); briefScr.mes
 { const wm = std(0x3a3f38), fl = std(0x2a2c28); B(BRX, 0, BRZ - 3.6, 7.4, 3.4, 0.2, wm); B(BRX, 0, BRZ + 3.6, 7.4, 3.4, 0.2, wm); B(BRX - 3.6, 0, BRZ, 0.2, 3.4, 7.4, wm); B(BRX + 3.6, 0, BRZ, 0.2, 3.4, 7.4, wm); B(BRX, 3.4, BRZ, 7.6, 0.2, 7.6, wm, true); const fm = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2).rotateX(-Math.PI / 2), fl); fm.position.set(BRX, 0.01, BRZ); world.add(fm);
   B(BRX, 0, BRZ - 0.6, 3, 0.85, 1.2, M.wood); for (const x of [-1.2, 0, 1.2]) B(BRX + x, 0, BRZ + 1.2, 0.5, 0.5, 0.5, M.olive);
   const glow = new THREE.Mesh(new THREE.PlaneGeometry(7, 0.08), new THREE.MeshBasicMaterial({ color: 0xffd27a })); glow.position.set(BRX, 3.3, BRZ - 3.48); world.add(glow); const glow2 = glow.clone(); glow2.position.z = BRZ + 3.48; glow2.rotation.y = Math.PI; world.add(glow2); }
-function drawBrief(s){ briefScr.draw((c, W, H) => { c.fillStyle = '#0d120d'; c.fillRect(0, 0, W, H); c.strokeStyle = GOLD; c.lineWidth = 6; c.strokeRect(6, 6, W - 12, H - 12);
+function drawBrief(s, tt = 99){ briefScr.draw((c, W, H) => { c.fillStyle = '#0d120d'; c.fillRect(0, 0, W, H); c.strokeStyle = GOLD; c.lineWidth = 6; c.strokeRect(6, 6, W - 12, H - 12);
   txt(c, s.title || '', W / 2, H * 0.1, H * 0.075, GOLD, '900');
   if (s.map) { const mx = W * 0.05, my = H * 0.18, mw = W * 0.42, mh = H * 0.72; c.fillStyle = '#1d2a1a'; c.fillRect(mx, my, mw, mh); const area = s.map.area, cx = area === 'forest' ? FX : CX, cz = area === 'forest' ? FZ : CZ, R = area === 'forest' ? 90 : 42, P2 = (x, z) => [mx + mw / 2 + (x - cx) / R * mw / 2, my + mh / 2 + (z - cz) / R * mh / 2];
-    if (area === 'forest') { c.fillStyle = '#2c4a2a'; for (let i = 0; i < 160; i++) { const [x, y] = P2(cx + Math.cos(i * 2.39) * (i % 80), cz + Math.sin(i * 2.39) * (i % 80)); c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); } c.strokeStyle = '#b89a6a'; c.lineWidth = 4; c.beginPath(); [FLZ, V3(FX - 20, 0, FZ + 22), V3(FX - 5, 0, FZ + 8), V3(FX + 15, 0, FZ - 2), FCAMP].forEach((p, i) => { const [x, y] = P2(p.x, p.z); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); const [lx, ly] = P2(FLZ.x, FLZ.z); txt(c, '🚁 LZ', lx, ly, H * 0.04, '#9cff57'); }
+    if (area === 'forest') { c.fillStyle = '#2c4a2a'; for (let i = 0; i < 160; i++) { const [x, y] = P2(cx + Math.cos(i * 2.39) * (i % 80), cz + Math.sin(i * 2.39) * (i % 80)); c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); } c.strokeStyle = '#b89a6a'; c.lineWidth = 4; c.setLineDash([tt * 300, 100000]); c.beginPath(); [FLZ, V3(FX - 20, 0, FZ + 22), V3(FX - 5, 0, FZ + 8), V3(FX + 15, 0, FZ - 2), FCAMP].forEach((p, i) => { const [x, y] = P2(p.x, p.z); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); const [lx, ly] = P2(FLZ.x, FLZ.z); c.setLineDash([]); txt(c, '🚁 LZ', lx, ly, H * 0.04, '#9cff57'); }
     else { c.strokeStyle = '#8a8f80'; c.lineWidth = 3; const [a1, b1] = P2(CX - 38, CZ - 38), [a2, b2] = P2(CX + 38, CZ + 38); c.strokeRect(a1, b1, a2 - a1, b2 - b1); c.fillStyle = '#6b6f62'; for (const [x, z, w, d] of [[CX - 12, CZ - 10, 12, 9], [CX + 12, CZ - 12, 10, 8], [CX - 14, CZ + 12, 9, 10], [CX + 14, CZ + 12, 12, 10]]) { const [p1, q1] = P2(x - w / 2, z - d / 2), [p2, q2] = P2(x + w / 2, z + d / 2); c.fillRect(p1, q1, p2 - p1, q2 - q1); } c.fillStyle = '#3a3a38'; const [r1, s1] = P2(CX - 4, CZ - 40), [r2] = P2(CX + 4, CZ + 40); c.fillRect(r1, s1, r2 - r1, mh); }
-    for (const mk of s.map.marks || []) { const [x, y] = P2(mk[0], mk[1]); c.fillStyle = mk[3] || '#ff5252'; c.beginPath(); c.arc(x, y, 12, 0, 7); c.fill(); txt(c, mk[2], x, y - 24, H * 0.04, '#fff'); } }
-  const tx = s.map ? W * 0.5 : W * 0.08, tw = s.map ? W * 0.46 : W * 0.84; c.textAlign = 'left'; c.fillStyle = '#e8eadf'; c.font = `bold ${H * 0.05}px ${FONT}`; const words = (s.text || '').split(' '); let line = '', y = H * 0.26; for (const w of words) { const t2 = line + w + ' '; if (c.measureText(t2).width > tw) { c.fillText(line, tx, y); line = w + ' '; y += H * 0.075; } else line = t2; } c.fillText(line, tx, y);
+    for (const mk of s.map.marks || []) { const [x, y] = P2(mk[0], mk[1]); c.fillStyle = mk[3] || '#ff5252'; c.globalAlpha = 0.35; c.beginPath(); c.arc(x, y, 14 + (tt * 30 % 30), 0, 7); c.fill(); c.globalAlpha = 1; c.beginPath(); c.arc(x, y, 11 + Math.sin(tt * 5) * 3, 0, 7); c.fill(); txt(c, mk[2], x, y - 26, H * 0.04, '#fff'); } }
+  const tx = s.map ? W * 0.5 : W * 0.08, tw = s.map ? W * 0.46 : W * 0.84; c.textAlign = 'left'; c.fillStyle = '#e8eadf'; c.font = `bold ${H * 0.05}px ${FONT}`; const words = (s.text || '').slice(0, Math.floor(tt * 40)).split(' '); let line = '', y = H * 0.26; for (const w of words) { const t2 = line + w + ' '; if (c.measureText(t2).width > tw) { c.fillText(line, tx, y); line = w + ' '; y += H * 0.075; } else line = t2; } c.fillText(line, tx, y);
   txt(c, renderer.xr.isPresenting ? 'Päästik = edasi • B = jäta vahele' : 'Klõps/E = edasi • Esc = jäta vahele', W / 2, H * 0.94, H * 0.035, '#8a917a', 'normal'); }); }
-let CUT = null; const cutHeli = heliModel(); cutHeli.g.visible = false;
-function cutscene(steps, done){ audioInit(); hideMenus(); clearEnemies(); clearTargets(); mission = null; game = null; mode = 'cut'; hudP.mesh.visible = false; CUT = { steps, i: -1, t: 0, done }; resetPlayer(BRX, BRZ + 1.0, 0); applyLight(); nextCut(); }
+let CUT = null; const cutHeli = heliModel(); cutHeli.g.visible = false; const cutEsc = [heliModel(), heliModel()]; cutEsc.forEach(h => h.g.visible = false);
+function cutscene(steps, done){ audioInit(); hideMenus(); clearEnemies(); clearTargets(); mission = null; game = null; mode = 'cut'; hudP.mesh.visible = false; CUT = { steps, i: -1, t: 0, done, fxT: 1 }; resetPlayer(BRX, BRZ + 1.0, 0); applyLight();
+  CUT.actors = []; const mk = (x, z, yaw, nm) => { const a = makeAlly(x, z); a.yaw = yaw; a.relaxed = true; a.nm = nm; a.ph = 0; a.home = V3(x, 0, z); CUT.actors.push(a); return a; }; CUT.cmd = mk(BRX - 1.3, BRZ - 2.5, Math.PI, 'Kotkas'); mk(BRX + 2.6, BRZ + 0.4, Math.PI / 2, 'Ilves'); mk(BRX - 2.6, BRZ + 0.9, -Math.PI / 2, 'Karu'); nextCut(); }
 function nextCut(){ if (!CUT) return; try { speechSynthesis.cancel(); } catch (e) {} CUT.i++; CUT.t = 0; CUT.start = performance.now(); const s = CUT.steps[CUT.i]; if (!s) return endCut();
-  if (s.type === 'ride') { cutHeli.g.visible = true; s.dur = s.dur || 14; } else { cutHeli.g.visible = false; if (rig.position.distanceTo(V3(BRX, 0, BRZ)) > 6) resetPlayer(BRX, BRZ + 1.0, 0); drawBrief(s); }
+  if (s.type === 'ride') { cutHeli.g.visible = true; cutEsc.forEach(h => h.g.visible = true); s.dur = s.dur || 14; if (CUT.cmd) CUT.cmd.m.g.visible = false; } else { cutHeli.g.visible = false; if (rig.position.distanceTo(V3(BRX, 0, BRZ)) > 6) resetPlayer(BRX, BRZ + 1.0, 0); drawBrief(s); }
   if (s.say) setTimeout(() => radioSay(s.who || 'Kotkas', s.say), 300); }
-function endCut(){ const c = CUT; CUT = null; cutHeli.g.visible = false; try { speechSynthesis.cancel(); } catch (e) {} if (c && c.done) c.done(); }
+function endCut(){ const c = CUT; CUT = null; cutHeli.g.visible = false; cutEsc.forEach(h => h.g.visible = false); try { speechSynthesis.cancel(); } catch (e) {} if (c && c.done) c.done(); }
 let cutPrev = false;
 function updCut(dt){ if (!CUT) return; const s = CUT.steps[CUT.i]; if (!s) return; CUT.t += dt;
   if (s.type === 'ride') { const k = clamp(CUT.t / s.dur, 0, 1), e = k * k * (3 - 2 * k), p = s.from.clone().lerp(s.to, e); p.y += Math.sin(k * Math.PI) * 6; const hg = cutHeli.g, yawH = Math.atan2(-(s.to.x - s.from.x), -(s.to.z - s.from.z)); hg.position.copy(p); hg.rotation.set(0.08 - k * 0.1, yawH, Math.sin(CUT.t * 0.7) * 0.03); hg.updateMatrixWorld(true); cutHeli.rotor.rotation.y += dt * 25; cutHeli.tail.rotation.x += dt * 30;
     const seat = hg.localToWorld(V3(0.55, -0.85, 0)); if (renderer.xr.isPresenting) { rig.rotation.y = yawH - Math.PI / 2; rig.position.copy(seat); } else { rig.position.copy(seat); if (CUT.t < dt * 2) { yaw = yawH - Math.PI / 2; pitch = -0.15; } }
     if (s.lines) { const li = Math.floor(CUT.t / (s.dur / s.lines.length)); if (li !== s.li && s.lines[li]) { s.li = li; radioSay(s.who || 'Kotkas', s.lines[li]); } }
-    if (Math.random() < dt * 4) S.whoosh(); }
-  else { camera.getWorldPosition(head); briefScr.mesh.lookAt(head.x, briefScr.mesh.position.y, head.z); }
+    if (Math.random() < dt * 4) S.whoosh();
+    cutEsc.forEach((h, i) => { const off = V3(i ? 13 : -15, i ? -2 : 3, i ? 16 : 10).applyAxisAngle(V3(0, 1, 0), yawH); h.g.position.copy(p).add(off); h.g.rotation.copy(hg.rotation); h.rotor.rotation.y += dt * 25; h.tail.rotation.x += dt * 30; });
+    CUT.actors.slice(1).forEach((a, i) => { a.pos.copy(hg.localToWorld(V3(-0.35, -0.85, i ? 0.9 : -0.9))); a.yaw = yawH - Math.PI / 2 + (i ? 0.3 : -0.3); updAlly(a, dt, null, 0); });
+    CUT.fxT -= dt; if (CUT.fxT <= 0) { CUT.fxT = rand(0.8, 2); const a = rand(0, 6.28), fp = V3(p.x + Math.cos(a) * rand(60, 120), 0.5, p.z + Math.sin(a) * rand(60, 120)); S.boom(fp); for (let i = 0; i < 25; i++) emit(fp, V3(rand(-2, 2), rand(2, 7), rand(-2, 2)), pick([0xffb74d, 0xff7043, 0x555555]), rand(1.5, 3), rand(1, 2.5), -2, 0.8); for (let i = 0; i < 5; i++) setTimeout(() => tracer(fp.clone().add(V3(rand(-20, 20), 1, rand(-20, 20))), fp.clone().add(V3(rand(-20, 20), rand(1, 6), rand(-20, 20))), 0xffd27a), i * 90); }
+    if (k > 0.8) for (let i = 0; i < 6; i++) emit(V3(p.x + rand(-5, 5), 0.3, p.z + rand(-5, 5)), V3(rand(-3, 3), rand(0.5, 2), rand(-3, 3)), 0x8a7a5c, 1.2, 1.5, 0, 0.8); }
+  else { camera.getWorldPosition(head); briefScr.mesh.lookAt(head.x, briefScr.mesh.position.y, head.z); CUT.drawT = (CUT.drawT || 0) - dt; if (CUT.drawT <= 0) { CUT.drawT = 0.12; drawBrief(s, (performance.now() - CUT.start) / 1000); }
+    CUT.actors.forEach((a, i) => { let goal = null; if (a === CUT.cmd) { const tgt = V3(BRX + (CUT.i % 2 ? 1.3 : -1.3), 0, BRZ - 2.5); if (a.pos.distanceTo(tgt) > 0.3) goal = tgt; } const mv = updAlly(a, dt, goal, 1.2); if (!mv) { const f = Math.atan2(head.x - a.pos.x, head.z - a.pos.z) + Math.PI; a.yaw += Math.atan2(Math.sin(f - a.yaw), Math.cos(f - a.yaw)) * Math.min(1, dt * 2); } }); }
   const press = !!(hands.some(h => h.connected && (h.trig || h.selTrig)) || mouseDown || keys.KeyE || keys.Space); if (press && !cutPrev && performance.now() - CUT.start > 600) nextCut(); cutPrev = press;
   if (keys.Escape) endCut();
   if (CUT && CUT.t > (s.dur || 14)) nextCut(); }
