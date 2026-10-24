@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Eesliin VR</title>
 <script>
-window.GAME_VERSION = 'el10';
+window.GAME_VERSION = 'el10b';
 (function(){ try { fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { var m = t.match(/window\.GAME_VERSION = '([^']+)'/); if (m && m[1] !== window.GAME_VERSION) { var k = 'el_reload_' + m[1]; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + m[1] + '_' + Date.now()); } } }).catch(() => {}); } catch (e) {} })();
 </script>
 <style>
@@ -21,7 +21,7 @@ window.GAME_VERSION = 'el10';
 <body>
 <div id="cross"></div>
 <div id="info">
-  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el10)</span><br>
+  <b>🎖️ EESLIIN VR</b> <span style="opacity:.6">(el10b)</span><br>
   Questis: <b>ENTER VR</b>. Parem päästik = tulista, A = laadi, B = vaheta relva. Võta asjad KEHALT külgnupuga: salv kõhult, granaat/suits paremalt rinnalt, 💉 süstal vasakult rinnalt (vii rinnale = ravi), püstol paremalt puusalt, põhirelv üle parema õla. Kõiguta käsi nagu jooksed = jookse! Vasak juhtkang sisse (või raadio vasakul õlal) = 📻 raadio. 🔪 Nuga rinnal keskel. Y = paus.<br>
   Arvutis: klõpsa ekraanile, <b>WASD</b> = liigu, hiir = vaata, <b>klõps</b> = tulista, <b>parem klõps</b> = sihi, <b>R</b> = laadi, <b>1</b> = põhirelv, <b>2</b> = püstol, <b>E</b> = võta ese, <b>F</b> = 💉 süstal, <b>G</b> = granaat, <b>H</b> = suits, <b>C</b> = kükita, <b>V</b> = 📻 raadio, <b>K</b> = 🔪 torka, <b>T</b> = 🔪 viska, <b>X</b> = 💥 välkgranaat, <b>Esc</b> = menüü.
 </div>
@@ -380,7 +380,7 @@ function buildGun(kind){
   if (kind === 'smg') g.scale.setScalar(0.9);
   return { g, mz, magwell, fore, mag, ammoP, lens, lensS: lens, lensA, flashM, sightY, baseSightY: sightY, muzzle: muzzle.clone(), slide, charge, pump, bolt, att, zoom: WEAPONS[kind].scope || 0 };
 }
-const scopeRT = new THREE.WebGLRenderTarget(384, 384);
+const scopeRT = new THREE.WebGLRenderTarget(256, 256);
 const laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff1a1a, fog: false })); laserDot.visible = false; scene.add(laserDot);
 const laserBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 1, 4).translate(0, 0.5, 0).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35, fog: false })); laserBeam.visible = false; scene.add(laserBeam);
 const scopeCam = new THREE.PerspectiveCamera(75 / 6, 1, 0.1, 600);
@@ -1206,7 +1206,9 @@ function updateWeapon(dt){
     const h = R(); if (!h) { g.g.visible = false; return; }
     if (h.isHand) { g.g.position.copy(h.hHold.position); if (h.gunQ) g.g.quaternion.copy(h.gunQ); else g.g.quaternion.copy(h.hHold.quaternion); g.g.translateY(0.04); }
     else { h.holder.getWorldPosition(g.g.position); h.holder.getWorldQuaternion(g.g.quaternion); }
-    const lh = L(); if (P.twoHand && lh && g.fore) { const lp = handPos(lh, V3()); const dir = lp.sub(g.g.position).normalize(); const up = V3(0, 1, 0).applyQuaternion(g.g.quaternion); const m = new THREE.Matrix4().lookAt(V3(), dir.clone().negate().negate(), up); g.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(g.g.position, g.g.position.clone().add(dir), up)); }
+    const lh = L(); if (P.twoHand && lh && g.fore) { const lp = handPos(lh, V3()), fwd0 = V3(0, 0, -1).applyQuaternion(g.g.quaternion), rel = lp.clone().sub(g.g.position), d0 = rel.length(); if (d0 > 0.85 || d0 < 0.12 || rel.normalize().dot(fwd0) < 0.5) P.twoHand = false; else { const up = V3(0, 1, 0).applyQuaternion(g.g.quaternion); g.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(g.g.position, g.g.position.clone().add(rel), up)); } }
+    // pikad relvad: silu käe värinat (ei hüple)
+    if (!P.gq || P.gqK !== P.weapon) { P.gq = g.g.quaternion.clone(); P.gqK = P.weapon; } else { const ang = P.gq.angleTo(g.g.quaternion), a = g.kind === 'pistol' ? 1 : clamp(ang * 9, P.twoHand ? 0.45 : 0.3, 1); P.gq.slerp(g.g.quaternion, a); g.g.quaternion.copy(P.gq); }
     if (P.kick) { g.g.rotateX(P.kick * 2); g.g.translateZ(P.kick * 0.5); P.kick *= Math.exp(-dt * 20); if (P.kick < 0.002) P.kick = 0; }
     applyAnimPose(g, dt);
   } else {
@@ -1221,7 +1223,7 @@ function updateWeapon(dt){
   // laadimine (taimer)
   updReload(g, dt);
   // snaipri sihiku pilt
-  if (g.lens && renderer.xr.isPresenting) { g.lens.getWorldPosition(scopeCam.position); if (Math.abs(scopeCam.fov - 75 / g.zoom) > 0.01) { scopeCam.fov = 75 / g.zoom; scopeCam.updateProjectionMatrix(); } g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
+  if (g.lens && renderer.xr.isPresenting && (P.scopeF = (P.scopeF || 0) + 1) % 2 === 0 && g.lens.getWorldPosition(tmpV).distanceTo(camera.getWorldPosition(head)) < 0.25) { g.lens.getWorldPosition(scopeCam.position); if (Math.abs(scopeCam.fov - 75 / g.zoom) > 0.01) { scopeCam.fov = 75 / g.zoom; scopeCam.updateProjectionMatrix(); } g.g.getWorldQuaternion(scopeCam.quaternion); const xrOn = renderer.xr.enabled; renderer.xr.enabled = false; g.g.visible = false; renderer.setRenderTarget(scopeRT); renderer.render(scene, scopeCam); renderer.setRenderTarget(null); renderer.xr.enabled = xrOn; g.g.visible = true; }
 }
 // sihiku ristnitkud tekstuuri peale
 scopeRT.texture.colorSpace = THREE.SRGBColorSpace;
@@ -1639,15 +1641,15 @@ function deskInteract(){ camera.getWorldPosition(head); camera.getWorldDirection
 function clearTempInter(){ for (let i = inter.length - 1; i >= 0; i--) if (inter[i].temp) inter.splice(i, 1); for (const h of hands) if (h.inter && h.inter.temp) h.inter = null; }
 // --- 🎒 relv selga / vööle, vaba käsi ---
 P.free = false;
-function stowWeapon(){ if (P.free) return; P.free = true; cancelReload(); P.twoHand = false; S.rack(); for (const h of hands) pulse(h, 0.5, 50); msg(P.weapon === 'pistol' ? '🎒 Püstol kabuuris – parem käsi vaba' : '🎒 Relv seljas – parem käsi vaba', GOLD, 1.5); }
-function drawWeapon(k){ P.free = false; if (P.weapon !== k) setWeapon(k); else { P.swapT = 0.4; S.rack(); } pulse(R(), 0.6, 60); }
+function stowWeapon(){ if (P.free || performance.now() - (P.drawAt || 0) < 900) return; P.free = true; cancelReload(); P.twoHand = false; S.rack(); for (const h of hands) pulse(h, 0.5, 50); msg(P.weapon === 'pistol' ? '🎒 Püstol kabuuris – parem käsi vaba' : '🎒 Relv seljas – parem käsi vaba', GOLD, 1.5); }
+function drawWeapon(k){ P.free = false; P.drawAt = performance.now(); if (P.weapon !== k) setWeapon(k); else { P.swapT = 0.4; S.rack(); } pulse(R(), 0.6, 60); }
 function rightGrabV2(h){
   if (P.chute) { if (chuteGrab(h)) return; }
   if (mode === 'end' || mode === 'pause' || h.hover || P.mounted || h.held) return; const hp = handPos(h, V3());
   if (interactGrab(h, hp)) return;
   const pk = nearPickup(hp, 0.32); if (pk) { takePickup(pk, h); return; }
-  const nearHol = hp.distanceTo(bodyPt('holster')) < 0.2, nearBack = hp.distanceTo(bodyPt('back')) < 0.26, prim = avail(P.prim) ? P.prim : 'rifle';
-  if (!P.free) { if (nearBack && P.weapon !== 'pistol' || nearHol && P.weapon === 'pistol') { stowWeapon(); return; } if (nearHol) { setWeapon('pistol'); pulse(h, 0.6, 60); return; } if (nearBack) { setWeapon(prim); pulse(h, 0.6, 60); return; } return; }
+  const nearHol = hp.distanceTo(bodyPt('holster')) < 0.2, nearBack = hp.distanceTo(bodyPt('back')) < 0.24, prim = avail(P.prim) ? P.prim : 'rifle';
+  if (!P.free) { if (nearBack && P.weapon !== 'pistol' || nearHol && P.weapon === 'pistol') { stowWeapon(); return; } if (nearHol) { setWeapon('pistol'); P.drawAt = performance.now(); pulse(h, 0.6, 60); return; } if (nearBack) { setWeapon(prim); P.drawAt = performance.now(); pulse(h, 0.6, 60); return; } return; }
   if (nearHol) { drawWeapon('pistol'); return; } if (nearBack) { drawWeapon(prim); return; }
   leftGrab(h);
 }
